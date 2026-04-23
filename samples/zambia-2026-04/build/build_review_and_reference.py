@@ -12,10 +12,25 @@ from docx import Document
 from docx.shared import Cm, Mm, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import _docx_helpers as H
+from visuals.infographics import cover_photo_strip
 
 CHARTS = pathlib.Path(__file__).parent.parent / "charts"
 OUT = pathlib.Path(__file__).parent.parent / "01-review-and-reference.docx"
 CONTENT_W = 16.6
+
+# Build the cover photo strip as one PNG at exact content width so it aligns
+# flush with the red title block below.
+_COVER_STRIP = CHARTS / "cover-strip-review-and-reference.png"
+cover_photo_strip(
+    [
+        H.ASSETS / "stock-africa-rural-road.jpeg",
+        H.ASSETS / "stock-africa-highway-aerial.jpeg",
+        H.ASSETS / "stock-africa-scaffolding.jpeg",
+    ],
+    _COVER_STRIP,
+    target_width_cm=CONTENT_W,
+    strip_height_mm=46,
+)
 
 
 # ─── Document setup ─────────────────────────────────────────────────────────
@@ -27,24 +42,18 @@ H.add_stripe_footer(doc.sections[0])
 
 
 # ─── Cover ──────────────────────────────────────────────────────────────────
-strip = doc.add_table(rows=1, cols=3)
-H.set_table_full_width(strip, CONTENT_W)
-col_w = CONTENT_W / 3
-H.apply_col_widths(strip, [col_w, col_w, col_w])
-
-stocks = [
-    H.ASSETS / "stock-africa-rural-road.jpeg",
-    H.ASSETS / "stock-africa-highway-aerial.jpeg",
-    H.ASSETS / "stock-africa-scaffolding.jpeg",
-]
-for i in range(3):
-    cell = strip.rows[0].cells[i]
-    H.set_cell_borders(cell)
-    H.set_cell_margins(cell, top=0, bottom=0, left=0, right=0)
-    cp = cell.paragraphs[0]
-    cp.paragraph_format.space_after = Pt(0)
-    cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    cp.add_run().add_picture(str(stocks[i]), width=Cm(col_w - 0.05), height=Mm(46))
+# Single composed PNG anchored inside a 1x1 table at EXACTLY CONTENT_W — the
+# same anchoring the red block uses, so the two edges are byte-identical.
+strip_tbl = doc.add_table(rows=1, cols=1)
+H.set_table_full_width(strip_tbl, CONTENT_W)
+H.apply_col_widths(strip_tbl, [CONTENT_W])
+scell = strip_tbl.rows[0].cells[0]
+H.set_cell_margins(scell, top=0, bottom=0, left=0, right=0)
+H.set_cell_borders(scell)
+scp = scell.paragraphs[0]
+scp.paragraph_format.space_before = Pt(0)
+scp.paragraph_format.space_after = Pt(0)
+scp.add_run().add_picture(str(_COVER_STRIP), width=Cm(CONTENT_W))
 
 # Red title block
 red = doc.add_table(rows=1, cols=1)
@@ -74,7 +83,7 @@ H.callout_box(
     doc, CONTENT_W,
     label="HOW TO READ THIS DOCUMENT",
     label_color=H.DMUTED,
-    body="This document pairs the CoST IS review with worked examples. Each section carries a REVIEW NOTE (what the current draft does, in red) and an EXAMPLE (what the revised section should look like, in blue). The full list of priority revisions sits once, in section 8. A companion document, 02-sample-final-report.docx, carries a fully-worked model report the Zambia team can adapt directly. Every stakeholder name, number, and date in the EXAMPLE blocks and the companion model is a placeholder pending MSG consultation.",
+    body="This document pairs the CoST IS review with worked examples. Each major section carries up to three blocks: a QUOTED FROM DRAFT block (the passage from the current report, in grey) so you can see exactly what the review note targets, a REVIEW NOTE (what is wrong and why, in red), and an EXAMPLE (what the revised section should look like, in blue). QUOTED blocks marked [QUOTE] are placeholders for the Zambia team to replace with verbatim text from the current draft. The full list of priority revisions sits once, in section 8. A companion document, 02-sample-final-report.docx, carries a fully-worked model report the Zambia team can adapt directly. Every stakeholder name, number, and date in the EXAMPLE blocks and the companion model is a placeholder pending MSG consultation.",
 )
 H.para(doc, "", space_after=10)
 
@@ -101,6 +110,10 @@ for i, (k, v) in enumerate([
 # ─── Page 2: Verdict + What is working ─────────────────────────────────────
 doc.add_page_break()
 H.heading(doc, "Verdict", level=1)
+
+# Glance anchor , three headline numbers before the verdict.
+H.centered_image(doc, CHARTS / "04-headline-stats.png", width_cm=CONTENT_W,
+                 space_before=0, space_after=12)
 
 H.verdict_box(
     doc, CONTENT_W,
@@ -155,6 +168,13 @@ H.para(doc, "The full list of priority revisions, R1 through R10, sits in sectio
 doc.add_page_break()
 H.heading(doc, "3.  Executive summary", level=1)
 
+H.quoted_passage(
+    doc, CONTENT_W,
+    source_hint="Executive summary, para 1 (draft of 3 March 2026)",
+    body="[QUOTE , Zambia team to paste opening sentence of the current executive summary verbatim. The current draft's opening reads, approximately: 'Significant data gaps exist in Zambia's disclosure of infrastructure procurement and implementation data across the OC4IDS standard.']",
+)
+H.para(doc, "", space_after=6)
+
 H.review_note(
     doc, CONTENT_W,
     ref_ids=["R1"],
@@ -205,6 +225,13 @@ H.example_block(doc, CONTENT_W,
 # ─── Section 4: Phase coverage ─────────────────────────────────────────────
 doc.add_page_break()
 H.heading(doc, "4.  Findings by lifecycle phase", level=1)
+
+H.quoted_passage(
+    doc, CONTENT_W,
+    source_hint="Section 4, opening paragraph (draft of 3 March 2026)",
+    body="[QUOTE , Zambia team to paste one or two sentences from the current section 4 that describe implementation-stage coverage without a number. The draft currently reads, approximately: 'Implementation-stage disclosure is thin, with most fields unpopulated or populated only in narrative form. Maintenance and decommissioning remain largely unaddressed by the current template submission.']",
+)
+H.para(doc, "", space_after=6)
 
 H.review_note(
     doc, CONTENT_W,
@@ -297,16 +324,27 @@ H.example_block(doc, CONTENT_W,
                 content_fn=_prov_row_content)
 
 
-# ─── Section 6: Gap typology ───────────────────────────────────────────────
+# ─── Section 6: Why the gaps exist ─────────────────────────────────────────
 doc.add_page_break()
-H.heading(doc, "6.  Gap typology", level=1)
+H.heading(doc, "6.  Why the gaps exist", level=1)
+
+H.quoted_passage(
+    doc, CONTENT_W,
+    source_hint="Section 4.1 or equivalent, on implementation data (draft of 3 March 2026)",
+    body="[QUOTE , Zambia team to paste the draft's description of the NCC monitoring role verbatim. The draft currently refers to NCC's statutory role without naming it as a 'collected but not yet disclosed' gap; typically something like: 'The National Council for Construction maintains inspection and project monitoring records under its statutory mandate, although these are not currently integrated with ZPPA's disclosure channels.']",
+)
+H.para(doc, "", space_after=6)
 
 H.review_note(
     doc, CONTENT_W,
     ref_ids=["R5"],
     body="The current draft lists gaps by phase but not by cause. This matters because different causes take different fixes: 'not collected' needs a new workflow, 'collected but not disclosed' needs integration, 'restricted by law' needs regulation. The strongest implicit finding in the current draft (NCC already collects implementation data) is a 'collected but not disclosed' gap; labelling it out loud reframes the whole recommendations section.",
 )
-H.para(doc, "", space_after=10)
+H.para(doc, "", space_after=8)
+
+# Integration-pathway visual , the thesis of the whole document.
+H.centered_image(doc, CHARTS / "05-integration-pathway.png", width_cm=CONTENT_W,
+                 space_before=0, space_after=12)
 
 
 def _typology_content(cell):
@@ -495,6 +533,13 @@ for ri, (ref, prio, issue, rec, owner) in enumerate(revs, start=1):
 # ─── Section 9: Decision summary ───────────────────────────────────────────
 doc.add_page_break()
 H.heading(doc, "9.  Decision summary", level=1)
+
+H.quoted_passage(
+    doc, CONTENT_W,
+    source_hint="Section 8.2 (draft of 3 March 2026) , data-holder lifecycle table",
+    body="[QUOTE , Zambia team to paste one or two rows of the current section 8.2 lifecycle table. Currently the table names the holder and the stage, but does not say which fields can go public today. Example row from the draft: 'Implementation , NCC , Project monitoring records, inspection forms, progress reports.']",
+)
+H.para(doc, "", space_after=6)
 
 H.review_note(
     doc, CONTENT_W,

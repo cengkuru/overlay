@@ -9,14 +9,19 @@ v0.11 changes:
 - Annotation text is short (under 60 chars) and sits away from data labels.
 - Charts are sized slightly larger so annotations do not crowd bars.
 """
-import sys, pathlib
+import pathlib
+from visuals.brand import apply_matplotlib_style, cost_charts_module
 
-ASSETS = pathlib.Path("/Users/cengkurumichael/.claude/skills/cost-document-design/assets")
-sys.path.insert(0, str(ASSETS))
+_cc = cost_charts_module()
+if _cc is None:
+    raise ImportError(
+        "cost_charts skill asset not importable. Install cost-document-design "
+        "skill at ~/.claude/skills/cost-document-design/ or vendor the helper."
+    )
+bar_chart_mode_a = _cc.bar_chart_mode_a
+save = _cc.save
 
-from cost_charts import style, bar_chart_mode_a, save  # noqa: E402
-
-style()
+apply_matplotlib_style()
 OUT = pathlib.Path(__file__).parent.parent / "charts"
 OUT.mkdir(parents=True, exist_ok=True)
 SRC_TEMPLATE = "Zambia OC4IDS field-level mapping template v0.9.5, accessed 23 April 2026."
@@ -92,7 +97,34 @@ def chart_3_decision_buckets():
     print("OK 03-decision-buckets.png")
 
 
+def infographic_headline_stats():
+    """Three-card glance anchor for the review letter §1 opening."""
+    from visuals.infographics import stat_card_row
+    stat_card_row([
+        ("73",       "OC4IDS fields mapped",      "Across four template sheets"),
+        ("2 of 4",   "Template sheets near zero", "Linked Releases and Parties"),
+        ("47 of 48", "Source elements traced",    "From ZPPA e-GP into OC4IDS"),
+    ], OUT / "04-headline-stats.png")
+    print("OK 04-headline-stats.png")
+
+
+def infographic_integration_pathway():
+    """4-step process diagram for §6 , the 'disclosure gap, not data gap' thesis."""
+    from visuals.infographics import process_diagram
+    process_diagram([
+        ("Data collected",  "NCC under s.53"),
+        ("Held by NCC",     "Monitoring records"),
+        ("Not disclosed",   "No OC4IDS path"),
+        ("Integration fix", "ZPPA ↔ NCC bridge"),
+    ], OUT / "05-integration-pathway.png",
+       title="Most missing implementation data is already collected",
+       source="CoST IS review of Zambia mapping template, 23 April 2026.")
+    print("OK 05-integration-pathway.png")
+
+
 if __name__ == "__main__":
     chart_1_oc4ids_sheet_coverage()
     chart_2_phase_coverage()
     chart_3_decision_buckets()
+    infographic_headline_stats()
+    infographic_integration_pathway()

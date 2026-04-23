@@ -18,11 +18,25 @@ from docx import Document
 from docx.shared import Cm, Mm, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import _docx_helpers as H
+from visuals.infographics import cover_photo_strip
 
 CHARTS = pathlib.Path(__file__).parent.parent / "charts"
 OUT = pathlib.Path(__file__).parent.parent / "02-sample-final-report.docx"
 
 CONTENT_W = 16.6
+
+# Cover photo strip composed as one PNG at exact content width.
+_COVER_STRIP = CHARTS / "cover-strip-sample-final-report.png"
+cover_photo_strip(
+    [
+        H.ASSETS / "stock-africa-highway-aerial.jpeg",
+        H.ASSETS / "stock-africa-rural-road.jpeg",
+        H.ASSETS / "stock-africa-scaffolding.jpeg",
+    ],
+    _COVER_STRIP,
+    target_width_cm=CONTENT_W,
+    strip_height_mm=50,
+)
 
 
 # ─── Document setup ─────────────────────────────────────────────────────────
@@ -34,24 +48,17 @@ H.add_stripe_footer(doc.sections[0])
 
 
 # ─── Cover ──────────────────────────────────────────────────────────────────
-strip = doc.add_table(rows=1, cols=3)
-H.set_table_full_width(strip, CONTENT_W)
-col_w = CONTENT_W / 3
-H.apply_col_widths(strip, [col_w, col_w, col_w])
-
-stocks = [
-    H.ASSETS / "stock-africa-highway-aerial.jpeg",
-    H.ASSETS / "stock-africa-rural-road.jpeg",
-    H.ASSETS / "stock-africa-scaffolding.jpeg",
-]
-for i in range(3):
-    cell = strip.rows[0].cells[i]
-    H.set_cell_borders(cell)
-    H.set_cell_margins(cell, top=0, bottom=0, left=0, right=0)
-    cp = cell.paragraphs[0]
-    cp.paragraph_format.space_after = Pt(0)
-    cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    cp.add_run().add_picture(str(stocks[i]), width=Cm(col_w - 0.05), height=Mm(50))
+# Single composed PNG anchored inside a 1x1 table at EXACTLY CONTENT_W.
+strip_tbl = doc.add_table(rows=1, cols=1)
+H.set_table_full_width(strip_tbl, CONTENT_W)
+H.apply_col_widths(strip_tbl, [CONTENT_W])
+scell = strip_tbl.rows[0].cells[0]
+H.set_cell_margins(scell, top=0, bottom=0, left=0, right=0)
+H.set_cell_borders(scell)
+scp = scell.paragraphs[0]
+scp.paragraph_format.space_before = Pt(0)
+scp.paragraph_format.space_after = Pt(0)
+scp.add_run().add_picture(str(_COVER_STRIP), width=Cm(CONTENT_W))
 
 # Red title block
 red = doc.add_table(rows=1, cols=1)
@@ -295,7 +302,7 @@ for ri, r in enumerate([
     ("Contracting Processes", "20 of 153", "13.1%", "Award and implementation subpaths silent."),
     ("Parties", "18 of 968", "1.9%", "Beneficial ownership and role data absent."),
     ("Linked Releases", "0 of 6", "0.0%", "No release-package structure in use."),
-    ("Total", "73 of 1,480 template slots", "4.9%", "Applicable-scope coverage is higher (see below)."),
+    ("Total", "73 OC4IDS fields", "4.9%", "Applicable-scope coverage is higher (see below)."),
 ], start=1):
     cells = st.rows[ri].cells
     H.set_row_height(st.rows[ri], 1.4)
@@ -313,7 +320,7 @@ H.callout_box(
     doc, CONTENT_W,
     label="ON THE DENOMINATORS",
     label_color=H.BLUE,
-    body="The OC4IDS template contains 1,480 field slots covering required, recommended, and sector-specific fields. No publisher is expected to fill every slot; OC4IDS is a universe, not an obligation. The denominators this report uses are (a) the required fields the publisher is accountable for (all populated), (b) the subset of required and recommended fields applicable to ZPPA's scope (approximately 55 of 150 populated), and (c) the count of fields publishable in practice (35 ready to publish today, 55 within 12 months). The 1,480 total is reported in Annex A for cross-country benchmarking only.",
+    body="The OC4IDS template contains the OC4IDS universe field slots covering required, recommended, and sector-specific fields. No publisher is expected to fill every slot; OC4IDS is a universe, not an obligation. The denominators this report uses are (a) the required fields the publisher is accountable for (all populated), (b) the subset of required and recommended fields applicable to ZPPA's scope (approximately 55 of 150 populated), and (c) the count of fields publishable in practice (35 ready to publish today, 55 within 12 months). The the OC4IDS universe total is reported in Annex A for cross-country benchmarking only.",
 )
 H.para(doc, "", space_after=12)
 
@@ -487,8 +494,8 @@ for ri, r in enumerate([
 H.para(doc, "", space_after=12)
 
 
-# ─── Page 8: Gap typology ──────────────────────────────────────────────────
-H.heading(doc, "6.  Gap typology: why the gaps exist", level=1)
+# ─── Page 8: Why the gaps exist ────────────────────────────────────────────
+H.heading(doc, "6.  Why the gaps exist", level=1)
 
 H.para(doc, "Every material gap is classified by root cause. Different causes require different fixes. The dominant cause in Zambia (four of seven lifecycle phases) is 'collected but not yet disclosed': the data exists inside government but is not public. The remediation is integration, not new collection.",
        size_pt=10.5, space_after=10)

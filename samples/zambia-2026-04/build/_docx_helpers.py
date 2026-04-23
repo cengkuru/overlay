@@ -322,6 +322,37 @@ def callout_box(doc, content_w_cm, *, label, label_color, body):
     return cb
 
 
+def quoted_passage(doc, content_w_cm, *, source_hint, body):
+    """QUOTED FROM DRAFT block: muted grey left-border, italic body.
+
+    Renders a verbatim (or near-verbatim) passage from the document under
+    review, so the downstream REVIEW NOTE has a specific target. The source
+    hint names the section the quote is from (e.g. "Executive summary, para 1"
+    or "Section 4.1, opening sentence").
+
+    Visual convention: muted grey (not red, not blue) so the reader sees the
+    three-step pattern at a glance — quote (muted) → note (red) → example (blue).
+    """
+    cb = doc.add_table(rows=1, cols=1)
+    set_table_full_width(cb, content_w_cm)
+    apply_col_widths(cb, [content_w_cm])
+    cc = cb.cell(0, 0)
+    set_cell_shading(cc, LGRAY)
+    set_cell_borders(cc, left="single", color=hex_of(MUTED), sz="36")
+    set_cell_margins(cc, top=CALLOUT_PAD_TOP, bottom=CALLOUT_PAD_BOTTOM,
+                     left=CALLOUT_PAD_LEFT, right=CALLOUT_PAD_RIGHT)
+    label_p = cc.paragraphs[0]
+    label_p.paragraph_format.space_after = Pt(4)
+    add_run(label_p, "QUOTED FROM DRAFT", bold=True, size_pt=9.5, color=DMUTED)
+    if source_hint:
+        add_run(label_p, "   " + source_hint, size_pt=9.5, color=DMUTED, italic=True)
+    body_p = cc.add_paragraph()
+    body_p.paragraph_format.space_before = Pt(0)
+    body_p.paragraph_format.space_after = Pt(0)
+    add_run(body_p, body, size_pt=10.5, color=CHARCOAL, italic=True)
+    return cb
+
+
 def review_note(doc, content_w_cm, *, ref_ids, body):
     """REVIEW NOTE callout: CoST Red left-border, grey fill.
 
