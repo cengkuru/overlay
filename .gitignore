@@ -1,0 +1,30 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Python (future CLI)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Node (future web tool)
+node_modules/
+npm-debug.log
+.env
+.env.local
+
+# Local country submissions and their outputs — never commit
+samples/private/
+*.xlsx
+*.docx
+*.pdf
+!docs/**/*.pdf
+
+# Calibration runs that contain unpublished country data
+calibration/private/
