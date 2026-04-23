@@ -26,5 +26,10 @@ samples/private/
 *.pdf
 !docs/**/*.pdf
 
+# Overlay deliverables kept under samples/<country>-<yyyy-mm>/ are the audit
+# trail of each review. Track them even though .docx is excluded above.
+!samples/**/*.docx
+!samples/**/*.png
+
 # Calibration runs that contain unpublished country data
 calibration/private/

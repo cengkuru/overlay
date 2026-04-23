@@ -23,6 +23,21 @@ Four reviewer questions the report must let a reader answer:
 
 ---
 
+## Dual-output rule (standing)
+
+Every Overlay review produces **two documents**, not one:
+
+1. **Review letter** (this rubric's findings, scores, and requested revisions).
+2. **Sample-corrected reference report** — a full rewrite of the author's report as it would look after every flagged revision is applied, preserving the author's real content (legal analysis, country insights, genuine structural strengths) and rewriting the parts the rubric flagged.
+
+A review without a sample-corrected reference is half the deliverable. Country teams who only receive a list of problems interpret them inconsistently and resubmit with new problems — the revision loop becomes the bottleneck. A worked example of the target state shortens the loop by showing, not telling.
+
+Both documents are CoST-branded Word documents produced with the `cost-document-design`, `communication-guide`, `cost-publication-assurance`, and `data-storytelling` skills. The review letter uses the Review archetype (Professional Report intensity, landscape A4). The sample-corrected reference uses the Activity Report archetype (Full Publication intensity, portrait A4).
+
+Both documents must appear in `samples/<country>-<yyyy-mm>/` inside this repository as the audit trail.
+
+---
+
 ## Scored dimensions (sum = 100)
 
 Hard-gate items (already enforced by Part B) are listed where relevant but are not re-scored here.
