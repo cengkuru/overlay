@@ -63,6 +63,8 @@ Required: evaluation criteria defined (Populated / Partial / Missing / NA), samp
 
 Reproducibility standard: a second reviewer running the same template against the same system reaches the same results.
 
+**Version-drift penalty:** reports mapped against an OC4IDS version more than one minor release behind current must include an explicit justification (e.g. *"chosen to align with existing in-country mapping work from 2024"*). Mapping against an older version without justification costs **−2 pts** in this section. The reviewer records the standard version used and flags any fields the publisher mapped against a deprecated path.
+
 ### C4. System landscape and data source inventory — 8 pts
 
 Required minimum table:
@@ -87,6 +89,8 @@ For each stage:
 
 - Phase-level summary tables in the **main body**: one row per phase with percentages, dominant gap type, 3 representative examples.
 - Full field-level matrix in the **annex**. A complete matrix runs 200+ rows and cannot sit in the narrative body.
+
+**Zero-coverage rule (phase level):** any phase with 0% coverage or only one field populated must be flagged explicitly with its own root-cause analysis. Such phases cannot be grouped with low-coverage phases under generic labels like *"other stages are weak"*. C0 requires this at sheet level; C5 re-states it at phase level so it cannot be buried. Kaduna's `Maintenance` and `Decommissioning` phases are the worked example — both at zero, both silently absorbed into the general "post-completion" narrative in the original report.
 
 Reports that put everything in the body are penalised for readability; reports that omit the annex matrix fail C5 outright.
 
@@ -162,6 +166,7 @@ Stratified into four layers:
 
 Each recommendation must carry:
 
+- **Recommendation ID** (R1, R2, …) — stable identifier used for cross-referencing from C11's roadmap.
 - Problem addressed (cross-referenced to a specific finding).
 - Proposed fix.
 - Named owner (role + person where possible).
@@ -177,7 +182,9 @@ Each recommendation must carry:
 
 Minimum table:
 
-| Priority | Action | Owner | Dependency | Timeline | Output |
+| Ref | Priority | Action | Owner | Dependency | Timeline | Output |
+
+`Ref` points to the C10 recommendation ID (R1, R2, …) the roadmap action implements. Every roadmap row must reference at least one recommendation, or state the row as *emergent* with justification. This keeps the roadmap from drifting away from the diagnosis.
 
 **Decision summary panel** *(mandatory; failure = −4 pts)* — one page or boxed section classifying publishable elements as:
 
@@ -311,11 +318,15 @@ Top three revisions requested:
 2. [section]: [specific change]
 3. [section]: [specific change]
 
+Resubmission target: [date — typically 4 to 6 weeks from the date of this letter].
+
 Detailed comments per section are attached.
 
 Best,
 [reviewer]
 ```
+
+Setting an explicit resubmission target prevents revision cycles from drifting — CoST IS has seen enough programmes lose momentum at this step.
 
 ---
 

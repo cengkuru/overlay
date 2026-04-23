@@ -45,7 +45,12 @@ Use 5 minutes to randomly sample from the `(OC4IDS) Projects`, `(OC4IDS) Contrac
 - **5 mapped rows (rows with content in the `Mapping` column):** do the `Mapping` and `Example` cells contain substantive content, or placeholders, URLs-with-no-field-names, or copy-pasted template text?
 - **5 unmapped rows:** is the omission justified in `Notes`? An empty `Notes` on an unmapped row is a silent gap.
 
-**Spot-sample rule:** if ≥2 of 5 mapped rows are placeholders, the report drops one grade band on the full rubric. If ≥2 of 5 unmapped rows have no justification, flag as a writing-discipline failure.
+**Spot-sample rule (decisions stay within the gate):**
+
+- **≥2 of 5 mapped rows are placeholders** → gate failure. Treat as a failed quantitative-evidence check; report is returned regardless of how many of the 10 narrative items passed. Note which rows in the gate-decision email so the author can fix them before resubmission.
+- **≥2 of 5 unmapped rows have no justification in `Notes`** → gate failure on the same principle. Silent omissions are not acceptable.
+
+The sample is a structural check on whether the template backs the report, not a points deduction to be applied later. Keeping the consequence in this stage avoids muddy cross-stage penalties.
 
 ---
 
@@ -85,6 +90,8 @@ Items requiring attention before resubmission:
 - Gate [N]: [...]
 
 [Optional — one paragraph on spot-sample findings.]
+
+Resubmission target: [date — typically 3 to 4 weeks from this letter].
 
 Reference: CoST Reviewer Gate Check v1.0.
 
