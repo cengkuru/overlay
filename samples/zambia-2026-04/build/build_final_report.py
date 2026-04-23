@@ -20,7 +20,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 import _docx_helpers as H
 
 CHARTS = pathlib.Path(__file__).parent.parent / "charts"
-OUT = pathlib.Path(__file__).parent.parent / "03-sample-final-report.docx"
+OUT = pathlib.Path(__file__).parent.parent / "02-sample-final-report.docx"
 
 CONTENT_W = 16.6
 

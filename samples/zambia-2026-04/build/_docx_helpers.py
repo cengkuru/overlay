@@ -322,6 +322,54 @@ def callout_box(doc, content_w_cm, *, label, label_color, body):
     return cb
 
 
+def review_note(doc, content_w_cm, *, ref_ids, body):
+    """REVIEW NOTE callout: CoST Red left-border, grey fill.
+
+    Used to annotate what the current draft does (or fails to do) in each
+    section of the merged review-and-reference document.
+
+    ref_ids: list of revision identifiers (e.g. ["R1"]) shown after the label.
+    """
+    cb = doc.add_table(rows=1, cols=1)
+    set_table_full_width(cb, content_w_cm)
+    apply_col_widths(cb, [content_w_cm])
+    cc = cb.cell(0, 0)
+    set_cell_shading(cc, LGRAY)
+    set_cell_borders(cc, left="single", color=hex_of(RED), sz="36")
+    set_cell_margins(cc, top=CALLOUT_PAD_TOP, bottom=CALLOUT_PAD_BOTTOM,
+                     left=CALLOUT_PAD_LEFT, right=CALLOUT_PAD_RIGHT)
+    p = cc.paragraphs[0]
+    add_run(p, "REVIEW NOTE", bold=True, size_pt=9.5, color=RED)
+    refs = "  (" + ", ".join(ref_ids) + ")" if ref_ids else ""
+    add_run(p, refs + "   ", bold=True, size_pt=9.5, color=DMUTED)
+    add_run(p, body, size_pt=10.5, color=CHARCOAL)
+    return cb
+
+
+def example_block(doc, content_w_cm, *, label_detail=None, content_fn):
+    """EXAMPLE block: CoST Blue left-border, white fill. Content rendered via callback.
+
+    The callback receives the inner cell object; use it to insert paragraphs,
+    tables, images, or any combination the example requires. A label row
+    ("EXAMPLE" + optional detail) is pre-written into the cell.
+    """
+    eb = doc.add_table(rows=1, cols=1)
+    set_table_full_width(eb, content_w_cm)
+    apply_col_widths(eb, [content_w_cm])
+    ec = eb.cell(0, 0)
+    set_cell_shading(ec, WHITE)
+    set_cell_borders(ec, left="single", color=hex_of(BLUE), sz="36")
+    set_cell_margins(ec, top=CALLOUT_PAD_TOP, bottom=CALLOUT_PAD_BOTTOM,
+                     left=CALLOUT_PAD_LEFT, right=CALLOUT_PAD_RIGHT)
+    label_p = ec.paragraphs[0]
+    label_p.paragraph_format.space_after = Pt(6)
+    add_run(label_p, "EXAMPLE", bold=True, size_pt=9.5, color=BLUE)
+    if label_detail:
+        add_run(label_p, "   " + label_detail, size_pt=9.5, color=DMUTED, italic=True)
+    content_fn(ec)
+    return eb
+
+
 def styled_table_header(row, labels, *, bg=TABLE_RED, font_color=WHITE, size_pt=10):
     for i, h in enumerate(labels):
         c = row.cells[i]

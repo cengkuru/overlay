@@ -55,12 +55,12 @@ Internal language translates into plain operational terms for members:
 
 Every Overlay review produces **two documents**, not one:
 
-1. **Review letter** (this rubric's findings, scores, and requested revisions).
-2. **Sample-corrected reference report** — a full rewrite of the author's report as it would look after every flagged revision is applied, preserving the author's real content (legal analysis, country insights, genuine structural strengths) and rewriting the parts the rubric flagged.
+1. **Review and structural reference** (`01-review-and-reference.docx`). Portrait A4. Pairs CoST IS feedback with worked examples, section by section. Every finding (REVIEW NOTE, CoST Red) sits next to the pattern the revised section should follow (EXAMPLE, CoST Blue). The full list of priority revisions (R1 to R10) appears once, in the recommendations section. One document, one reading order.
+2. **Sample final report** (`02-sample-final-report.docx`). Portrait A4. A fully-worked model report for the reviewed country. The structure, numbers, legal analysis, and recommendation logic are set at the level a CoST IS reviewer would accept on publication. Every stakeholder name appears in square brackets as a placeholder pending MSG consultation. The country team can adapt it directly.
 
-A review without a sample-corrected reference is half the deliverable. Country teams who only receive a list of problems interpret them inconsistently and resubmit with new problems — the revision loop becomes the bottleneck. A worked example of the target state shortens the loop by showing, not telling.
+A review without a worked model is half the deliverable. Country teams who only receive a list of problems interpret them inconsistently and resubmit with new problems; the revision loop becomes the bottleneck. A worked example of the target state shortens the loop by showing, not telling.
 
-Both documents are CoST-branded Word documents produced with the `cost-document-design`, `communication-guide`, `cost-publication-assurance`, and `data-storytelling` skills. The review letter uses the Review archetype (Professional Report intensity, landscape A4). The sample-corrected reference uses the Activity Report archetype (Full Publication intensity, portrait A4).
+Both documents are CoST-branded Word documents produced with the `cost-document-design`, `communication-guide`, `cost-publication-assurance`, and `data-storytelling` skills. Both use the Activity Report archetype (Full Publication intensity, portrait A4).
 
 Both documents must appear in `samples/<country>-<yyyy-mm>/` inside this repository as the audit trail.
 
