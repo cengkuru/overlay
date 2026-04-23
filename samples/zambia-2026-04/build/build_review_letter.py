@@ -1,14 +1,26 @@
-"""Build Doc 1: CoST-branded review letter for Zambia OC4IDS report.
+"""Build Doc 1: CoST IS review of the Zambia OC4IDS field-level mapping report.
 
-Archetype: Review/Feedback. Intensity: Professional Report. Layout: Landscape A4.
+Layout: Landscape A4, Professional Report intensity.
+Voice: CoST IS to Zambia Technical Team. No internal tool vocabulary.
+
+v0.10 changes:
+- All Overlay / gate-score / rubric-code / Part A/B/C references removed.
+- Resubmission date removed (routed to covering email).
+- 'Findings' renamed to 'Priority revisions'; F1-F10 renamed to R1-R10.
+- 'Gate scorecard' section deleted entirely.
+- 'What is working' (former 'Strengths') moved up to sit right after the verdict.
+- Comparative praise without reference data removed.
+- Body dates use '23 April 2026' form; metadata retains ISO.
+- Table widths set explicitly to landscape content width so tables span the page.
+- Source-path samples rendered in Courier New (no backticks).
 """
 import pathlib
 from docx import Document
-from docx.shared import Cm, Mm, Pt, RGBColor, Inches, Emu
+from docx.shared import Cm, Mm, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
-from docx.enum.section import WD_ORIENT, WD_SECTION
-from docx.oxml.ns import qn, nsmap
+from docx.enum.section import WD_ORIENT
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
 # ─── CoST palette ───────────────────────────────────────────────────────────
@@ -25,7 +37,6 @@ LGRAY = RGBColor(0xF3, 0xF2, 0xF1)
 LIGHT_NEUTRAL = RGBColor(0xF0, 0xED, 0xE7)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 
-# Priority tints
 CRITICAL_BG = RGBColor(0xF5, 0xD5, 0xD3)
 HIGH_BG = RGBColor(0xD9, 0xED, 0xF3)
 MEDIUM_BG = RGBColor(0xFD, 0xF3, 0xD7)
@@ -37,10 +48,12 @@ ASSETS = pathlib.Path("/Users/cengkurumichael/.claude/skills/cost-document-desig
 CHARTS = pathlib.Path(__file__).parent.parent / "charts"
 OUT = pathlib.Path(__file__).parent.parent / "01-review-letter.docx"
 
-# ─── docx helpers ───────────────────────────────────────────────────────────
+# Landscape A4: 297mm x 210mm, margins 18mm => content width ~26.1 cm = 26100 emu-ish
+# In Cm the usable width is 297 - 36 = 261 mm = 26.1 cm
+CONTENT_W_CM = 26.1
+
 
 def hex_of(c):
-    """Convert RGBColor or 6-char string to 6-char hex."""
     if isinstance(c, str):
         return c.upper().lstrip("#")
     return "".join(f"{b:02X}" for b in c)
@@ -68,6 +81,37 @@ def set_cell_borders(cell, top=None, bottom=None, left=None, right=None, color="
     tc_pr.append(tc_borders)
 
 
+def set_table_full_width(table, content_cm=CONTENT_W_CM):
+    """Force a table to span the section's content width."""
+    table.alignment = WD_TABLE_ALIGNMENT.LEFT
+    table.autofit = False
+    tbl_pr = table._tbl.tblPr
+    # Remove any existing tblW
+    for existing in tbl_pr.findall(qn('w:tblW')):
+        tbl_pr.remove(existing)
+    tblW = OxmlElement('w:tblW')
+    tblW.set(qn('w:w'), str(int(content_cm * 567)))  # 567 dxa per cm
+    tblW.set(qn('w:type'), 'dxa')
+    tbl_pr.append(tblW)
+
+
+def apply_col_widths(table, widths_cm):
+    """Set column widths via both XML grid and cell-level width, so Word honours them."""
+    tbl = table._tbl
+    # Remove existing grid
+    for grid in tbl.findall(qn('w:tblGrid')):
+        tbl.remove(grid)
+    grid = OxmlElement('w:tblGrid')
+    for w in widths_cm:
+        gc = OxmlElement('w:gridCol')
+        gc.set(qn('w:w'), str(int(w * 567)))
+        grid.append(gc)
+    tbl.insert(list(tbl).index(tbl.find(qn('w:tblPr'))) + 1, grid)
+    for row in table.rows:
+        for cell, w in zip(row.cells, widths_cm):
+            cell.width = Cm(w)
+
+
 def add_run(p, text, *, bold=False, italic=False, size_pt=10.5, color=CHARCOAL, font="Arial"):
     run = p.add_run(text)
     run.font.name = font
@@ -78,9 +122,9 @@ def add_run(p, text, *, bold=False, italic=False, size_pt=10.5, color=CHARCOAL, 
     return run
 
 
-def para(doc, text, *, style=None, size_pt=10.5, color=CHARCOAL, bold=False, italic=False,
+def para(doc, text, *, size_pt=10.5, color=CHARCOAL, bold=False, italic=False,
          space_after=6, align=None, font="Arial"):
-    p = doc.add_paragraph() if style is None else doc.add_paragraph(style=style)
+    p = doc.add_paragraph()
     if align is not None:
         p.alignment = align
     pf = p.paragraph_format
@@ -91,281 +135,234 @@ def para(doc, text, *, style=None, size_pt=10.5, color=CHARCOAL, bold=False, ita
     return p
 
 
-def accent_bar(doc, color=RED, width_pt=100):
-    """A thin coloured rule, implemented as a 1-row, 1-col table with bottom border."""
+def accent_bar(doc, color=RED, width_cm=6):
+    """A thin coloured rule under a heading."""
     t = doc.add_table(rows=1, cols=1)
     t.autofit = False
-    t.allow_autofit = False
+    t.alignment = WD_TABLE_ALIGNMENT.LEFT
+    tbl_pr = t._tbl.tblPr
+    for existing in tbl_pr.findall(qn('w:tblW')):
+        tbl_pr.remove(existing)
+    tblW = OxmlElement('w:tblW')
+    tblW.set(qn('w:w'), str(int(width_cm * 567)))
+    tblW.set(qn('w:type'), 'dxa')
+    tbl_pr.append(tblW)
     cell = t.cell(0, 0)
     cell.text = ""
-    # width via column
-    tblW = OxmlElement('w:tblW')
-    tblW.set(qn('w:w'), str(width_pt * 20))
-    tblW.set(qn('w:type'), 'dxa')
-    t._tbl.tblPr.append(tblW)
-    set_cell_borders(cell, bottom="single",
-                     color=hex_of(color),
-                     sz="24")
+    cell.paragraphs[0].paragraph_format.space_after = Pt(0)
+    set_cell_borders(cell, bottom="single", color=hex_of(color), sz="24")
     return t
 
 
-def set_landscape(section, margin_mm=18):
-    section.orientation = WD_ORIENT.LANDSCAPE
-    section.page_width = Mm(297)
-    section.page_height = Mm(210)
-    section.top_margin = Mm(margin_mm)
-    section.bottom_margin = Mm(margin_mm)
-    section.left_margin = Mm(margin_mm)
-    section.right_margin = Mm(margin_mm)
-
-
-# ─── Document ───────────────────────────────────────────────────────────────
+# ─── Document setup ─────────────────────────────────────────────────────────
 
 doc = Document()
-
-# Page size + margins
 section = doc.sections[0]
-set_landscape(section)
+section.orientation = WD_ORIENT.LANDSCAPE
+section.page_width = Mm(297)
+section.page_height = Mm(210)
+section.top_margin = Mm(18)
+section.bottom_margin = Mm(18)
+section.left_margin = Mm(18)
+section.right_margin = Mm(18)
 
-# Default style
 style = doc.styles['Normal']
 style.font.name = 'Arial'
 style.font.size = Pt(10.5)
 style.font.color.rgb = CHARCOAL
 
-# --- Header: CoST logo right-aligned ---
+# Header: logo top-right
 header = section.header
 hp = header.paragraphs[0]
 hp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 hp.paragraph_format.space_after = Pt(0)
-hr = hp.add_run()
-hr.add_picture(str(ASSETS / "cost-logo-real.jpeg"), width=Cm(4.2))
+hp.add_run().add_picture(str(ASSETS / "cost-logo-real.jpeg"), width=Cm(4.2))
 
-# --- Footer: stripe + page number ---
+# Footer: stripe + page number
 footer = section.footer
 fp = footer.paragraphs[0]
 fp.alignment = WD_ALIGN_PARAGRAPH.LEFT
-fp.paragraph_format.space_before = Pt(0)
 fp.paragraph_format.space_after = Pt(0)
-fr = fp.add_run()
-fr.add_picture(str(ASSETS / "cost-stripe-real.png"), width=Cm(16), height=Mm(3.5))
+fp.add_run().add_picture(str(ASSETS / "cost-stripe-real.png"), width=Cm(17))
 fp2 = footer.add_paragraph()
 fp2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 fp2.paragraph_format.space_before = Pt(4)
-fld_run = fp2.add_run()
-fld_run.font.name = 'Arial'
-fld_run.font.size = Pt(8.5)
-fld_run.font.color.rgb = MUTED
-# PAGE field
+fr = fp2.add_run()
+fr.font.name = 'Arial'; fr.font.size = Pt(8.5); fr.font.color.rgb = MUTED
 fld = OxmlElement('w:fldSimple')
 fld.set(qn('w:instr'), 'PAGE')
-fld_run._element.append(fld)
+fr._element.append(fld)
 
-# ─── Page 1: Title block ───────────────────────────────────────────────────
-para(doc, "OVERLAY REVIEW", size_pt=11, bold=True, color=RED, space_after=2)
+# ─── Title block ────────────────────────────────────────────────────────────
+para(doc, "CoST IS REVIEW", size_pt=11, bold=True, color=RED, space_after=2)
 para(doc, "OC4IDS Field-Level Mapping Report", size_pt=22, bold=True, color=CHARCOAL, space_after=4)
-para(doc, "Zambia (ZPPA / NCC / CoST Zambia)  ·  Draft of 3 March 2026", size_pt=13, color=DMUTED, space_after=12)
-accent_bar(doc, RED, width_pt=380)
+para(doc, "Zambia: ZPPA, NCC, CoST Zambia   •   Draft of 3 March 2026",
+     size_pt=13, color=DMUTED, space_after=10)
+accent_bar(doc, RED, width_cm=20)
 para(doc, "", space_after=6)
 
-# Metadata block
-meta_t = doc.add_table(rows=4, cols=2)
-meta_t.autofit = False
-meta_t.allow_autofit = False
-for row in meta_t.rows:
-    row.cells[0].width = Cm(4.5)
-    row.cells[1].width = Cm(18)
+# Metadata block (no internal vocabulary)
+meta_t = doc.add_table(rows=3, cols=2)
+set_table_full_width(meta_t)
+apply_col_widths(meta_t, [5.5, 20.5])
 meta_rows = [
-    ("Review framework:", "Overlay v0.9  ·  Reviewer Gate Check (Part B) + Full Rubric (Part C)"),
-    ("Reviewed by:", "Michael Cengkuru  ·  CoST International Secretariat"),
-    ("Review date:", "2026-04-23"),
-    ("Decision:", "REVISE AND RESUBMIT  ·  Gate score 3 / 10"),
+    ("Reviewed by:",
+     "CoST International Secretariat. This review applies CoST IS's OC4IDS mapping review methodology."),
+    ("Review date:", "23 April 2026."),
+    ("Companion document:",
+     "02-structural-reference.docx, a short illustrative extract showing one way a revised report could be structured."),
 ]
 for i, (k, v) in enumerate(meta_rows):
     kc, vc = meta_t.rows[i].cells
-    kp = kc.paragraphs[0]
-    add_run(kp, k, bold=True, size_pt=10, color=DMUTED)
-    vp = vc.paragraphs[0]
-    if i == 3:
-        add_run(vp, "REVISE AND RESUBMIT", bold=True, size_pt=10.5, color=RED)
-        add_run(vp, "  ·  Gate score 3 / 10", size_pt=10.5, color=CHARCOAL)
-    else:
-        add_run(vp, v, size_pt=10.5, color=CHARCOAL)
+    add_run(kc.paragraphs[0], k, bold=True, size_pt=10, color=DMUTED)
+    add_run(vc.paragraphs[0], v, size_pt=10.5, color=CHARCOAL)
     for c in (kc, vc):
         set_cell_borders(c)
 para(doc, "", space_after=12)
 
-# ─── Verdict box ───────────────────────────────────────────────────────────
+# ─── Verdict ────────────────────────────────────────────────────────────────
 vb = doc.add_table(rows=1, cols=1)
-vb.autofit = False
+set_table_full_width(vb)
+apply_col_widths(vb, [CONTENT_W_CM])
 vc = vb.cell(0, 0)
 set_cell_shading(vc, LGRAY)
-set_cell_borders(vc, top="single", bottom="single",
-                 color=hex_of(RED), sz="24")
+set_cell_borders(vc, top="single", bottom="single", color=hex_of(RED), sz="24")
 vcp = vc.paragraphs[0]
 add_run(vcp, "VERDICT   ", bold=True, size_pt=10, color=RED)
-add_run(vcp, "Zambia has produced a materially stronger mapping template than the Kaduna calibration floor ",
+add_run(vcp, "The Zambia mapping template is substantively strong: 73 OC4IDS fields mapped, every mapped field backed by a real source path, and 47 of 48 source elements traced forward into OC4IDS. ",
         size_pt=10.5, color=CHARCOAL)
-add_run(vcp, "(73 mapped fields, all substantive, 97.9% source forward-mapping). ",
+add_run(vcp, "The narrative report does not yet reflect the strength of the underlying work. ",
         bold=True, size_pt=10.5, color=CHARCOAL)
-add_run(vcp, "The narrative report does not surface any of these numbers. The legal framework analysis in Annex 8.1 is the strongest we have seen on this kind of report. Fix the quantitative layer and this report reaches a solid band.",
+add_run(vcp, "The executive summary leads with adjectives rather than numbers, the lifecycle findings are described but not quantified, and most recommendations have no named owner. The legal framework analysis in Annex 8.1 is publication-quality and should anchor the report's front page, not sit at the back.",
         size_pt=10.5, color=CHARCOAL)
-vcp2 = vc.add_paragraph()
-vcp2.paragraph_format.space_before = Pt(4)
-add_run(vcp2, "Resubmission target: 2026-05-21.", bold=True, size_pt=10, color=CHARCOAL)
 para(doc, "", space_after=14)
 
-# ─── Headline findings chart ───────────────────────────────────────────────
-sec = doc.add_paragraph()
-add_run(sec, "1.  The template evidence", bold=True, size_pt=13, color=CHARCOAL)
-accent_bar(doc, RED, width_pt=160)
-para(doc, "", space_after=4)
-
-para(doc, "Zambia mapped 73 of 1,480 OC4IDS template slots across four sheets. All mapped fields are substantive (no placeholders). The Projects and Contracting Processes sheets carry the bulk of the coverage; Linked Releases is at zero and Parties is effectively silent.",
-     size_pt=10.5, space_after=8)
-
+# ─── What is working (moved up: strengths first) ────────────────────────────
 p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-r = p.add_run()
-r.add_picture(str(CHARTS / "01-sheet-coverage.png"), width=Cm(18))
-para(doc, "", space_after=6)
-
-# ─── Gate scorecard ────────────────────────────────────────────────────────
-sec = doc.add_paragraph()
-add_run(sec, "2.  Gate scorecard", bold=True, size_pt=13, color=CHARCOAL)
-accent_bar(doc, RED, width_pt=160)
+add_run(p, "1.  What is working", bold=True, size_pt=13, color=CHARCOAL)
+accent_bar(doc, LOW_TEXT, width_cm=8)
 para(doc, "", space_after=4)
 
-para(doc, "Overlay's 10-item gate check is pass/fail. A score below 7 returns the report at triage without full-rubric scoring. Zambia scored 3 / 10.",
+para(doc, "These elements of the current draft are already at the level a reader needs. Keep them on revision.",
      size_pt=10.5, space_after=8)
 
-gate_rows = [
-    ("1", "Quantified headline (%)", "FAIL", "Executive summary states \"significant data gaps\". No percentage anywhere."),
-    ("2", "Portal URLs + access dates", "FAIL", "ZPPA e-GP named; URL (eprocure.zppa.org.zm) lives only in the template. No access date."),
-    ("3", "Sample defined", "FAIL", "No project count, value, sectors, time window, or sampling method."),
-    ("4", "OC4IDS template version", "PASS", "\"OC4IDS v0.9.5\" stated in §3 Methodology."),
-    ("5", "Coverage % by phase", "FAIL", "Phases discussed qualitatively. Template supports percentages directly."),
-    ("6", "Source-field provenance", "FAIL", "Template has clean notation (zppa_egp.project.project.id). Report buries it."),
-    ("7", "Gap root causes (typology)", "FAIL", "Gaps labelled \"missing\". The NCC-already-collects-this insight is a type-6 gap (collected, not disclosed) and should be labelled."),
-    ("8", "Procurement + FOI law cited", "PASS", "Strong: ATI Act s.6/8/9/17, ZPPA Act s.67/70, NCC Act s.5/31/33/53."),
-    ("9", "Recommendations with owners + timelines", "FAIL", "Six groups, all directional. No owner, no timeline, no effort level."),
-    ("10", "Template attached", "PASS", "Workbook attached alongside."),
+strengths = [
+    ("Legal framework analysis in Annex 8.1.",
+     "The citations to the Access to Information Act 2023 (s.6, s.8, s.9, s.17), the ZPPA Act 2020 (s.67, s.70), and the NCC Act 2020 (s.5, s.31, s.33, s.53) are precise and directly tied to disclosure obligations. This is the report's strongest asset. Move the substance forward into the executive summary; keep the full text in the annex."),
+    ("The NCC insight.",
+     "The observation in section 4.1 that most implementation-stage data is already collected by NCC under its statutory monitoring mandate is the single most actionable finding in the report. It reframes the question from 'how do we collect this data?' to 'how do we integrate and disclose what is already collected?' Make this the headline of the recommendations section."),
+    ("Source element forward-mapping.",
+     "The template maps 47 of the 48 source data elements from the ZPPA e-GP system into OC4IDS paths. That coverage is excellent. Report the number in the methodology section."),
+    ("Lifecycle framework in section 8.2.",
+     "The five-row data-source-by-stage table is a foundation for the decision summary this review asks for (section 2, revision R4 below). Expand it into the four-bucket classification: ready to publish, small format fixes, needs system work, needs policy action."),
+    ("Mapping quality.",
+     "Every OC4IDS path the template lists as mapped contains real source content. No placeholders. A reviewer sampling the mapping sheets can verify every line back to the ZPPA e-GP schema."),
 ]
+for title, body in strengths:
+    p = doc.add_paragraph()
+    p.paragraph_format.space_after = Pt(6)
+    add_run(p, "+  ", bold=True, size_pt=10.5, color=LOW_TEXT)
+    add_run(p, title + "  ", bold=True, size_pt=10.5, color=CHARCOAL)
+    add_run(p, body, size_pt=10.5, color=CHARCOAL)
 
-t = doc.add_table(rows=len(gate_rows) + 1, cols=4)
-t.autofit = False
-widths = [Cm(1.0), Cm(5.8), Cm(2.0), Cm(15.8)]
-for row in t.rows:
-    for c, w in zip(row.cells, widths):
-        c.width = w
+para(doc, "", space_after=14)
 
-# Header
-for i, h in enumerate(["#", "Gate item", "Result", "Note"]):
-    c = t.rows[0].cells[i]
-    set_cell_shading(c, "2D2D2D")
-    set_cell_borders(c, top="single", bottom="single", left="single", right="single", color="2D2D2D", sz="4")
-    hp = c.paragraphs[0]
-    add_run(hp, h, bold=True, size_pt=10, color=WHITE)
-
-# Body
-for ri, (num, item, result, note) in enumerate(gate_rows, start=1):
-    row_cells = t.rows[ri].cells
-    bg = LGRAY if ri % 2 == 0 else WHITE
-    for c in row_cells:
-        set_cell_shading(c, bg)
-        set_cell_borders(c)
-    add_run(row_cells[0].paragraphs[0], num, size_pt=10, color=MUTED)
-    add_run(row_cells[1].paragraphs[0], item, size_pt=10, color=CHARCOAL)
-    # result cell: colour-coded
-    rp = row_cells[2].paragraphs[0]
-    if result == "PASS":
-        add_run(rp, result, bold=True, size_pt=10, color=LOW_TEXT)
-        set_cell_shading(row_cells[2], LOW_BG)
-    else:
-        add_run(rp, result, bold=True, size_pt=10, color=RED)
-        set_cell_shading(row_cells[2], CRITICAL_BG)
-    add_run(row_cells[3].paragraphs[0], note, size_pt=9.5, color=CHARCOAL)
-
+# ─── Headline numbers chart ─────────────────────────────────────────────────
+p = doc.add_paragraph()
+add_run(p, "2.  The mapping evidence", bold=True, size_pt=13, color=CHARCOAL)
+accent_bar(doc, RED, width_cm=8)
 para(doc, "", space_after=4)
-para(doc, "Spot-sample (template evidence check): 5 of 5 mapped rows carry substantive content, no placeholders. This is the strongest spot-sample result we have seen. Unmapped rows, however, have empty Notes columns: gate rule fails on unjustified omissions.",
-     size_pt=10, italic=True, color=DMUTED, space_after=12)
 
-# ─── Phase coverage chart ──────────────────────────────────────────────────
+para(doc, "The report's strongest asset is the template itself. It maps 73 OC4IDS fields across four sheets, all backed by real source paths from the ZPPA e-GP system. The headline does not yet say this. Section 4 below sets out specific changes to bring the narrative in line with the evidence.",
+     size_pt=10.5, space_after=8)
+
+para(doc, "Two of the four OC4IDS template sheets carry almost no Zambia data. That is the first story the executive summary should lead with.",
+     size_pt=10.5, space_after=6)
+
+p = doc.add_paragraph()
+p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+p.add_run().add_picture(str(CHARTS / "01-sheet-coverage.png"), width=Cm(22))
+para(doc, "", space_after=14)
+
+# Page break for section 3
 doc.add_page_break()
-sec = doc.add_paragraph()
-add_run(sec, "3.  Where the gaps sit", bold=True, size_pt=13, color=CHARCOAL)
-accent_bar(doc, RED, width_pt=160)
+
+# ─── Phase coverage ─────────────────────────────────────────────────────────
+p = doc.add_paragraph()
+add_run(p, "3.  Where the gaps sit across the project lifecycle", bold=True, size_pt=13, color=CHARCOAL)
+accent_bar(doc, RED, width_cm=8)
 para(doc, "", space_after=4)
 
-para(doc, "Coverage is front-loaded on identification and procurement. The middle of the lifecycle, where value-for-money judgments live, is almost empty. Maintenance and decommissioning return zero mapped fields.",
+para(doc, "Disclosure is strong at identification and procurement. It thins out sharply across implementation and collapses entirely at maintenance and decommissioning. The report describes this in words; the revision should add the percentages.",
      size_pt=10.5, space_after=8)
 
 p = doc.add_paragraph()
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-p.add_run().add_picture(str(CHARTS / "02-phase-coverage.png"), width=Cm(18))
+p.add_run().add_picture(str(CHARTS / "02-phase-coverage.png"), width=Cm(22))
 para(doc, "", space_after=6)
 
-para(doc, "The report's §5.3 labels Implementation a \"critical gap\" and §4.1 flags that the NCC already collects most of the missing data through its monitoring mandate (NCC Act 2020, s.53). Under the Overlay typology this is a type-6 gap (collected, not disclosed). Remediation is data integration, not data collection. Label it.",
+para(doc, "The report already points to the single most useful reading of this pattern: most of the missing implementation-stage data is already collected by the National Council for Construction under its statutory monitoring mandate (NCC Act 2020, s.53). In other words, this is a disclosure gap, not a data gap. Remediation is integration, not new collection. That framing should carry the report.",
      size_pt=10.5, space_after=14)
 
-# ─── Findings table ────────────────────────────────────────────────────────
-sec = doc.add_paragraph()
-add_run(sec, "4.  Findings, owners, and specific revisions", bold=True, size_pt=13, color=CHARCOAL)
-accent_bar(doc, RED, width_pt=160)
+# ─── Priority revisions table ───────────────────────────────────────────────
+p = doc.add_paragraph()
+add_run(p, "4.  Priority revisions requested", bold=True, size_pt=13, color=CHARCOAL)
+accent_bar(doc, RED, width_cm=8)
 para(doc, "", space_after=4)
 
-findings = [
-    ("F1", "Critical", "Executive summary carries no quantified headline.",
-     "\"Significant data gaps exist\" is the current phrasing. The template supports \"73 of 1,480 OC4IDS fields mapped (4.9%); zero coverage on Linked Releases and effectively zero on Parties\".",
-     "Rewrite the opening sentence with the percentage and the four per-sheet counts. Match Part A item 1.",
-     "Zambia Technical Team", "2026-05-07"),
-    ("F2", "Critical", "Phase-level percentages not disclosed.",
-     "Phases are discussed qualitatively. The template allows quantification: Identification 28%, Procurement 21%, Preparation 12%, Completion 8%, Implementation 2%, Maintenance 0%, Decommissioning 0%.",
-     "Add a phase coverage table to §4 Findings with one row per phase, a percentage column, and the dominant gap type.",
-     "Zambia Technical Team", "2026-05-10"),
-    ("F3", "Critical", "Source-field provenance buried in the template.",
-     "Every mapped OC4IDS path in the template has a clean source notation, e.g. `/id` -> `zppa_egp.project.project.id`. The report does not expose these mappings.",
-     "Add a provenance column to the §5 phase tables: OC4IDS path, ZPPA e-GP path, status.",
-     "Zambia Technical Team", "2026-05-14"),
-    ("F4", "Critical", "Recommendations have no owners or timelines.",
-     "§6.1 to §6.6 list six recommendation groups. All are directional. None name an institution or a quarter. Overlay gate item 9 fails.",
-     "Assign each recommendation to NCC, ZPPA, CoST Zambia, or MoF with a specific quarter. The NCC Act and ATI Act already provide legal mandates; cite them per recommendation.",
-     "CoST Zambia + NCC + ZPPA", "2026-05-14"),
-    ("F5", "High", "Gap typology not applied.",
-     "Gaps are described by phase, not by root cause. The strongest implicit finding - \"NCC already collects this data\" - is a type-6 gap (collected, not disclosed). Remediation differs by type.",
-     "Apply the 8-category typology to each material gap in §5. Label the NCC insight explicitly as type-6; this reframes §6 from \"collect more data\" to \"integrate and disclose\".",
-     "Zambia Technical Team", "2026-05-10"),
-    ("F6", "High", "Data beyond OC4IDS not examined.",
-     "The report does not discuss which ZPPA e-GP or NCC fields fall outside OC4IDS. Country-specific disclosure that could feed upstream to OCP is invisible. Scored in Overlay C9.",
-     "Add a short section on non-template fields: what is disclosed locally, whether to preserve as extensions, what might be proposed for OC4IDS standard revision.",
-     "Zambia Technical Team + CoST IS", "2026-05-21"),
-    ("F7", "High", "Decision summary panel absent.",
-     "Annex 8.2 is a first pass at the lifecycle-to-data-source crosswalk, but it does not classify elements as publish-now / light-transform / system-change / legal-action. C11's mandatory decision panel is missing.",
-     "Add a decision summary panel to §7 Conclusion using the four-bucket classification. See the sample corrected report, §8, for the target format.",
-     "Zambia Technical Team", "2026-05-17"),
-    ("F8", "Medium", "Portal URL and access dates missing from the body.",
-     "The ZPPA e-GP URL (eprocure.zppa.org.zm/epps/home.d) appears only in the template's (Source) 1 sheet.",
-     "Add the URL and the date(s) accessed to §3.1 Data Sources.",
-     "Zambia Technical Team", "2026-05-07"),
-    ("F9", "Medium", "Sample not quantified.",
-     "\"The ZPPA e-GP system was analysed\" does not specify the scope.",
-     "State the count of procurements reviewed, aggregate value, sectors covered, and the time window.",
-     "Zambia Technical Team", "2026-05-07"),
-    ("F10", "Low", "Unjustified omissions in template Notes column.",
-     "Spot-sample of 5 unmapped template rows found no justification in the Notes column. Overlay rule fails on silent omissions.",
-     "Add a Notes entry to every unmapped row in the (OC4IDS) sheets before resubmission. A one-line reason is enough.",
-     "Zambia Technical Team", "2026-05-14"),
+para(doc, "Ten changes, ranked by priority. Each carries an issue, the evidence behind it, the specific revision requested, and a proposed owner. Dates are not set here; a resubmission schedule will be agreed through the MSG in the covering note.",
+     size_pt=10.5, space_after=10)
+
+revs = [
+    ("R1", "Critical", "The executive summary carries no number.",
+     'The opening currently reads "significant data gaps exist". The template itself supports a stronger statement: 73 OC4IDS fields mapped, two of four template sheets near zero (Linked Releases 0/6, Parties 18/968).',
+     "Rewrite the first paragraph of the executive summary to lead with the headline numbers and the two silent sheets.",
+     "Zambia Technical Team"),
+    ("R2", "Critical", "Phase-level percentages are discussed but not reported.",
+     "Section 4 describes each phase qualitatively. A quantitative line per phase is recoverable directly from the template: identification 28%, preparation 12%, procurement 21%, implementation 2%, completion 8%, maintenance 0%, decommissioning 0%.",
+     "Add a phase coverage table to section 4: one row per phase, with percentage, dominant reason for the gap, and a short example.",
+     "Zambia Technical Team"),
+    ("R3", "Critical", "Source-field provenance is in the template but not in the report.",
+     "Every mapped OC4IDS path in the template is already traced to a ZPPA e-GP source path (for example, the OC4IDS project id comes from zppa_egp.project.project.id).",
+     "Add a source column to the section 5 phase tables: the OC4IDS path, the ZPPA e-GP source path, and the current status.",
+     "Zambia Technical Team"),
+    ("R4", "Critical", "Recommendations carry no owner or timeline.",
+     "Sections 6.1 to 6.6 list six recommendation groups. All are directional. None names an institution, a person, or a quarter.",
+     "Assign each recommendation to a specific institution (NCC, ZPPA, CoST Zambia, or the relevant ministry) with a proposed quarter. Cite the legal provision each recommendation operationalises. Timelines will be confirmed by the MSG.",
+     "CoST Zambia with NCC and ZPPA"),
+    ("R5", "High", "Gaps are listed by phase but not classified by cause.",
+     "The strongest implicit finding in the report is that most of the missing implementation data is already collected by NCC but is not publicly disclosed. That is a different problem from data that does not exist at all, and it takes a different fix.",
+     "Classify each material gap as one of: not collected, collected but not disclosed, collected only in unstructured documents, collected inconsistently, restricted by law or workflow. Label the NCC insight explicitly as 'collected but not yet disclosed'.",
+     "Zambia Technical Team"),
+    ("R6", "High", "Data published beyond OC4IDS is not examined.",
+     "The report does not discuss which fields the ZPPA e-GP or NCC publish today that fall outside OC4IDS. That is useful country context for both the Zambia audience and for OCP's future OC4IDS revisions.",
+     "Add a short section listing non-OC4IDS fields the country publishes, with a recommendation on whether to preserve them as extensions or to propose them for the standard.",
+     "Zambia Technical Team with CoST IS"),
+    ("R7", "High", "The conclusion does not classify what can be published now.",
+     "Section 8.2 is a first pass at who holds data at which stage, but it does not separate fields that can be published today from those requiring new workflows or new law.",
+     "Add a decision summary at the end of the report: four groups (ready to publish, small format fixes, needs system work, needs policy action), with a short example in each. This is the table a Permanent Secretary reads first.",
+     "Zambia Technical Team"),
+    ("R8", "Medium", "The portal URL and access dates are missing from the body.",
+     "The ZPPA e-GP URL (eprocure.zppa.org.zm/epps/home.d) is in the attached mapping template but not in the report itself.",
+     "Add the URL and the dates the system was accessed to section 3.1.",
+     "Zambia Technical Team"),
+    ("R9", "Medium", "The sample is not quantified.",
+     "Section 3 says 'the ZPPA e-GP system was analysed' without specifying what was analysed.",
+     "State the count of procurement records reviewed, the aggregate value, the sectors covered, the time window, and how records were selected.",
+     "Zambia Technical Team"),
+    ("R10", "Low", "Some unmapped rows in the template lack a reason.",
+     "A spot-check of five unmapped rows in the OC4IDS sheets found no note explaining why the field was left blank.",
+     "Before resubmission, add a short Notes entry to every unmapped row in the (OC4IDS) sheets. One line per row is sufficient.",
+     "Zambia Technical Team"),
 ]
 
-ft = doc.add_table(rows=len(findings) + 1, cols=6)
-ft.autofit = False
-col_w = [Cm(0.9), Cm(1.8), Cm(5.0), Cm(7.8), Cm(6.3), Cm(3.4)]
-for row in ft.rows:
-    for c, w in zip(row.cells, col_w):
-        c.width = w
-headers = ["Ref", "Priority", "Issue", "Evidence", "Recommendation", "Owner / deadline"]
+rt = doc.add_table(rows=len(revs) + 1, cols=6)
+set_table_full_width(rt)
+apply_col_widths(rt, [1.1, 2.1, 5.0, 7.6, 6.4, 3.9])
+
+headers = ["Ref", "Priority", "Issue", "Evidence", "Revision requested", "Proposed owner"]
 for i, h in enumerate(headers):
-    c = ft.rows[0].cells[i]
+    c = rt.rows[0].cells[i]
     set_cell_shading(c, "2D2D2D")
     set_cell_borders(c, top="single", bottom="single", left="single", right="single", color="2D2D2D")
     add_run(c.paragraphs[0], h, bold=True, size_pt=10, color=WHITE)
@@ -376,8 +373,8 @@ prio_map = {
     "Medium": (MEDIUM_TEXT, MEDIUM_BG),
     "Low": (LOW_TEXT, LOW_BG),
 }
-for ri, (ref, prio, issue, ev, rec, owner, dl) in enumerate(findings, start=1):
-    cells = ft.rows[ri].cells
+for ri, (ref, prio, issue, ev, rec, owner) in enumerate(revs, start=1):
+    cells = rt.rows[ri].cells
     bg = LGRAY if ri % 2 == 0 else WHITE
     for c in cells:
         set_cell_shading(c, bg)
@@ -389,91 +386,92 @@ for ri, (ref, prio, issue, ev, rec, owner, dl) in enumerate(findings, start=1):
     add_run(cells[2].paragraphs[0], issue, bold=True, size_pt=9.5, color=CHARCOAL)
     add_run(cells[3].paragraphs[0], ev, size_pt=9.5, color=CHARCOAL)
     add_run(cells[4].paragraphs[0], rec, size_pt=9.5, color=CHARCOAL)
-    owner_p = cells[5].paragraphs[0]
-    add_run(owner_p, owner, size_pt=9.5, color=CHARCOAL)
-    p2 = cells[5].add_paragraph()
-    p2.paragraph_format.space_before = Pt(2)
-    add_run(p2, dl, bold=True, size_pt=9.5, color=RED)
+    add_run(cells[5].paragraphs[0], owner, size_pt=9.5, color=CHARCOAL)
 
 para(doc, "", space_after=12)
 
-# ─── Decision buckets chart ────────────────────────────────────────────────
+# ─── Decision summary preview ───────────────────────────────────────────────
 doc.add_page_break()
-sec = doc.add_paragraph()
-add_run(sec, "5.  What Zambia can publish now", bold=True, size_pt=13, color=CHARCOAL)
-accent_bar(doc, RED, width_pt=160)
+p = doc.add_paragraph()
+add_run(p, "5.  What Zambia can publish now", bold=True, size_pt=13, color=CHARCOAL)
+accent_bar(doc, RED, width_cm=8)
 para(doc, "", space_after=4)
 
-para(doc, "The four-bucket classification below is the steering view government and MSG readers actually use. It sits in §C11 of the Overlay rubric as a mandatory panel. The report's §8.2 Lifecycle Framework is the foundation; expand it into this classification.",
+para(doc, "This is the reading this review asks for in R7 above. It is also the single table the report's primary audience (MSG members, permanent secretaries, senior officials) will read first. An indicative version, drawn from the current mapping template, appears below. The revision should produce a version reviewed by the Zambia team before publication.",
      size_pt=10.5, space_after=8)
 
 p = doc.add_paragraph()
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-p.add_run().add_picture(str(CHARTS / "03-decision-buckets.png"), width=Cm(18))
-para(doc, "", space_after=6)
-
-# ─── Legal crosswalk chart ─────────────────────────────────────────────────
-sec = doc.add_paragraph()
-add_run(sec, "6.  The legal lever", bold=True, size_pt=13, color=CHARCOAL)
-accent_bar(doc, RED, width_pt=160)
-para(doc, "", space_after=4)
-
-para(doc, "Zambia's legal framework already authorises publication of most OC4IDS fields. Annex 8.1 is publication-quality and should anchor the executive summary, not sit at the back of the report.",
-     size_pt=10.5, space_after=8)
-
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-p.add_run().add_picture(str(CHARTS / "04-legal-crosswalk.png"), width=Cm(18))
+p.add_run().add_picture(str(CHARTS / "03-decision-buckets.png"), width=Cm(22))
 para(doc, "", space_after=14)
 
-# ─── Strengths to preserve ─────────────────────────────────────────────────
-sec = doc.add_paragraph()
-add_run(sec, "7.  Strengths to preserve on revision", bold=True, size_pt=13, color=CHARCOAL)
-accent_bar(doc, LOW_TEXT, width_pt=160)
-para(doc, "", space_after=6)
+# ─── Law already permits most of it ────────────────────────────────────────
+p = doc.add_paragraph()
+add_run(p, "6.  The law already permits most of what is missing", bold=True, size_pt=13, color=CHARCOAL)
+accent_bar(doc, RED, width_cm=8)
+para(doc, "", space_after=4)
 
-strengths = [
-    ("Legal framework analysis (Annex 8.1).",
-     "ATI Act 2023 s.6/8/9/17 with quoted provisions, ZPPA Act No.3/2020 s.67/70, NCC Act No.10/2020 s.5/31/33/53 with subsections. The strongest legal anchoring we have seen on this review cycle. Move the essence of this analysis into the executive summary, keep the full text in the annex."),
-    ("The NCC insight.",
-     "The observation that most implementation-stage data is already collected by NCC under its statutory monitoring mandate is the single most actionable finding in the report. Label it explicitly as a type-6 gap (collected, not disclosed) and anchor §6 recommendations around integration rather than collection."),
-    ("Source forward-mapping.",
-     "The template maps 47 of 48 source data elements forward to OC4IDS (97.9%). This is exceptional. Lift the number directly into §3 Methodology."),
-    ("Lifecycle framework (§8.2).",
-     "The five-row data-source-by-stage crosswalk is the skeleton of the decision summary panel in §C11 of the rubric. Expand it into the four-bucket classification (publish-now / light-transform / system-change / legal-action)."),
-    ("No placeholder mappings.",
-     "Spot-sample of 5 mapped rows returned 5 substantive entries. This is the strongest evidence-check result on record for Overlay. Do not change the template mappings during revision, the numbers are correct."),
+para(doc, "This is the point the legal framework analysis in Annex 8.1 already makes. It is worth pulling forward into the body of the report:",
+     size_pt=10.5, space_after=8)
+
+# Simple, labelled table instead of a misleading 4-bar chart
+lt = doc.add_table(rows=4, cols=3)
+set_table_full_width(lt)
+apply_col_widths(lt, [7.0, 11.5, 7.6])
+headers = ["Legal authority", "What it authorises", "Relevance to OC4IDS publication"]
+for i, h in enumerate(headers):
+    c = lt.rows[0].cells[i]
+    set_cell_shading(c, "2D2D2D")
+    set_cell_borders(c, top="single", bottom="single", left="single", right="single", color="2D2D2D")
+    add_run(c.paragraphs[0], h, bold=True, size_pt=10, color=WHITE)
+
+legal_rows = [
+    ("Access to Information Act 2023, s.8",
+     "Proactive publication by every information holder of contracts signed, suppliers, amounts, and periods for completion.",
+     "Broad: covers most procurement-stage and contract-stage OC4IDS fields."),
+    ("NCC Act 2020, s.53",
+     "Regular project monitoring and evaluation by the National Council for Construction, with the right to request records and to share information across authorities.",
+     "Depth: covers implementation-stage fields (progress, quality, variations) that ZPPA does not currently publish."),
+    ("ZPPA Act 2020, s.67 and s.70",
+     "Transparency of procurement records subject to confidentiality provisions.",
+     "Procurement-specific: already supports the fields the e-GP system publishes today."),
 ]
-for title, body in strengths:
-    p = doc.add_paragraph()
-    p.paragraph_format.space_after = Pt(6)
-    add_run(p, "+  ", bold=True, size_pt=10.5, color=LOW_TEXT)
-    add_run(p, title + "  ", bold=True, size_pt=10.5, color=CHARCOAL)
-    add_run(p, body, size_pt=10.5, color=CHARCOAL)
+for ri, r in enumerate(legal_rows, start=1):
+    cells = lt.rows[ri].cells
+    bg = LGRAY if ri % 2 == 0 else WHITE
+    for c in cells:
+        set_cell_shading(c, bg)
+        set_cell_borders(c)
+    add_run(cells[0].paragraphs[0], r[0], bold=True, size_pt=9.5, color=CHARCOAL)
+    add_run(cells[1].paragraphs[0], r[1], size_pt=9.5, color=CHARCOAL)
+    add_run(cells[2].paragraphs[0], r[2], size_pt=9.5, color=CHARCOAL)
 
-para(doc, "", space_after=14)
+para(doc, "", space_after=12)
 
-# ─── Companion document ────────────────────────────────────────────────────
-sec = doc.add_paragraph()
-add_run(sec, "8.  Companion document", bold=True, size_pt=13, color=CHARCOAL)
-accent_bar(doc, RED, width_pt=160)
-para(doc, "", space_after=6)
-
+# Callout box with the core legal implication
 cb = doc.add_table(rows=1, cols=1)
+set_table_full_width(cb)
+apply_col_widths(cb, [CONTENT_W_CM])
 cc = cb.cell(0, 0)
 set_cell_shading(cc, LGRAY)
 set_cell_borders(cc, left="single", color=hex_of(BLUE), sz="32")
 ccp = cc.paragraphs[0]
-add_run(ccp, "02-sample-corrected-report.docx", bold=True, size_pt=10.5, color=BLUE)
-ccp2 = cc.add_paragraph()
-add_run(ccp2, "A full rewrite of the Zambia report showing the target state after all revisions above are applied. Use it as a reference; do not copy it wholesale. Preserve your legal analysis, the NCC insight, and the lifecycle framework; rewrite the executive summary, findings tables, and recommendations sections against the corrected structure.",
-        size_pt=10, color=CHARCOAL)
-para(doc, "", space_after=12)
+add_run(ccp, "IMPLICATION  ", bold=True, size_pt=10, color=BLUE)
+add_run(ccp, "Publishing most of the missing implementation data does not require new law. It requires an integration layer between ZPPA and NCC, and a short statutory instrument clarifying that the two systems share publication-relevant records. The revision should make this case in the recommendations section.",
+        size_pt=10.5, color=CHARCOAL)
+para(doc, "", space_after=14)
 
-# ─── Footer signature ──────────────────────────────────────────────────────
-para(doc, "Reference: Overlay v0.9  ·  Reviewer Gate Check (Part B v1.0) + Full Rubric (Part C v0.9)",
-     size_pt=9, italic=True, color=MUTED, space_after=0)
-para(doc, "Sources: Zambia OC4IDS Field-Level Mapping Template v0.9.5, accessed 2026-04-23. n=1,480 template slots. Zambia OC4IDS Field-Level Mapping Report (draft), 3 March 2026.",
+# ─── Next step ──────────────────────────────────────────────────────────────
+p = doc.add_paragraph()
+add_run(p, "7.  Next step", bold=True, size_pt=13, color=CHARCOAL)
+accent_bar(doc, RED, width_cm=8)
+para(doc, "", space_after=4)
+
+para(doc, "This review is a working document between CoST IS and the Zambia Technical Team. The covering note proposes a short call to walk through the ten revisions and agree a resubmission schedule with the MSG. A companion document (02-structural-reference.docx) is attached: it is a short illustrative extract, not a rewrite of the report. Use it as a reference for the kind of specificity a strong report carries, not as content to adopt.",
+     size_pt=10.5, space_after=12)
+
+# Source footer
+para(doc, "Source: Zambia OC4IDS field-level mapping template v0.9.5, accessed 2026-04-23. Zambia OC4IDS field-level mapping report (draft), 3 March 2026.",
      size_pt=9, italic=True, color=MUTED, space_after=0)
 
 doc.save(str(OUT))

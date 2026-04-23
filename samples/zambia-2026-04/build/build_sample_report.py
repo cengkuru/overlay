@@ -1,18 +1,24 @@
-"""Build Doc 2: a sample-corrected version of Zambia's OC4IDS report.
+"""Build Doc 2: a short structural reference for a revised Zambia report.
 
-Archetype: Activity Report. Intensity: Full Publication. Layout: Portrait A4.
+Layout: Portrait A4. Length target: 4 to 6 pages.
 
-Preserves Zambia's real content (legal framework, NCC insight, lifecycle framing)
-and rewrites the parts Overlay flagged: quantified headline, phase percentages,
-source-field provenance, owned recommendations, decision summary panel.
-
-This is a TARGET-STATE reference. Use it to calibrate the resubmission, not to copy.
+v0.10 changes from the previous 22-page parallel rewrite:
+- Relabelled as "Structural reference" with an explicit non-commitment disclaimer.
+- Named owners replaced with placeholders (actual names require MSG consultation).
+- Trimmed to: cover, executive summary excerpt, one phase row, one provenance
+  row, gap typology table, one recommendation row, decision panel.
+- Full recommendation list, full roadmap, risks table, review trail, conclusion
+  are all removed. Those belong in the real report after MSG consultation.
+- Denominators revised: no more "4.9% of 1,480 template slots" headline; coverage
+  expressed against applicable-scope denominators.
+- Cover strip uses stock-africa-* assets only.
+- Table widths set explicitly to content width so no table collapses to ~70%.
 """
 import pathlib
 from docx import Document
 from docx.shared import Cm, Mm, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_ALIGN_VERTICAL
+from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
@@ -34,7 +40,10 @@ LOW_TEXT = RGBColor(0x4E, 0xA8, 0x3D)
 
 ASSETS = pathlib.Path("/Users/cengkurumichael/.claude/skills/cost-document-design/assets")
 CHARTS = pathlib.Path(__file__).parent.parent / "charts"
-OUT = pathlib.Path(__file__).parent.parent / "02-sample-corrected-report.docx"
+OUT = pathlib.Path(__file__).parent.parent / "02-structural-reference.docx"
+
+# Portrait A4, 20mm margins: 210 - 40 = 170 mm content width = 17 cm
+CONTENT_W_CM = 17.0
 
 
 def hex_of(c):
@@ -76,6 +85,33 @@ def set_cell_margins(cell, top=100, bottom=100, left=150, right=150):
     tc_pr.append(tcMar)
 
 
+def set_table_full_width(table, content_cm=CONTENT_W_CM):
+    table.alignment = WD_TABLE_ALIGNMENT.LEFT
+    table.autofit = False
+    tbl_pr = table._tbl.tblPr
+    for existing in tbl_pr.findall(qn('w:tblW')):
+        tbl_pr.remove(existing)
+    tblW = OxmlElement('w:tblW')
+    tblW.set(qn('w:w'), str(int(content_cm * 567)))
+    tblW.set(qn('w:type'), 'dxa')
+    tbl_pr.append(tblW)
+
+
+def apply_col_widths(table, widths_cm):
+    tbl = table._tbl
+    for grid in tbl.findall(qn('w:tblGrid')):
+        tbl.remove(grid)
+    grid = OxmlElement('w:tblGrid')
+    for w in widths_cm:
+        gc = OxmlElement('w:gridCol')
+        gc.set(qn('w:w'), str(int(w * 567)))
+        grid.append(gc)
+    tbl.insert(list(tbl).index(tbl.find(qn('w:tblPr'))) + 1, grid)
+    for row in table.rows:
+        for cell, w in zip(row.cells, widths_cm):
+            cell.width = Cm(w)
+
+
 def add_run(p, text, *, bold=False, italic=False, size_pt=10.5, color=CHARCOAL, font="Arial"):
     run = p.add_run(text)
     run.font.name = font
@@ -100,28 +136,13 @@ def para(doc, text, *, size_pt=10.5, color=CHARCOAL, bold=False, italic=False,
 
 
 def heading(doc, text, *, level=1):
-    sizes = {1: 16, 2: 13, 3: 11}
-    space_before = {1: 18, 2: 12, 3: 8}
+    sizes = {1: 15, 2: 12, 3: 11}
+    space_before = {1: 14, 2: 10, 3: 6}
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(space_before[level])
     p.paragraph_format.space_after = Pt(4)
     p.paragraph_format.keep_with_next = True
     add_run(p, text, bold=True, size_pt=sizes[level], color=CHARCOAL if level > 1 else RED)
-    if level == 1:
-        # thin accent rule
-        t = doc.add_table(rows=1, cols=1)
-        c = t.cell(0, 0)
-        set_cell_borders(c, bottom="single", color=hex_of(RED), sz="24")
-        c.paragraphs[0].paragraph_format.space_after = Pt(0)
-        tblW = OxmlElement('w:tblW')
-        tblW.set(qn('w:w'), str(120 * 20))
-        tblW.set(qn('w:type'), 'dxa')
-        t._tbl.tblPr.append(tblW)
-
-
-def page_break(doc):
-    p = doc.add_paragraph()
-    p.add_run().add_break(6)  # page break
 
 
 # ─── Build document ─────────────────────────────────────────────────────────
@@ -163,434 +184,295 @@ fld.set(qn('w:instr'), 'PAGE')
 fr._element.append(fld)
 
 # ─── Cover block ────────────────────────────────────────────────────────────
-# Small stock image strip
+# Africa-contextual image strip (stock-africa-* assets only)
 strip = doc.add_table(rows=1, cols=3)
-strip.autofit = False
-widths = [Cm(5.6), Cm(5.6), Cm(5.6)]
+set_table_full_width(strip)
+apply_col_widths(strip, [CONTENT_W_CM / 3, CONTENT_W_CM / 3, CONTENT_W_CM / 3])
+
 stocks = [
     ASSETS / "stock-africa-rural-road.jpeg",
-    ASSETS / "stock-site-inspection.jpeg",
-    ASSETS / "stock-africa-excavation.jpeg",
+    ASSETS / "stock-africa-highway-aerial.jpeg",
+    ASSETS / "stock-africa-scaffolding.jpeg",
 ]
-for i, w in enumerate(widths):
-    strip.rows[0].cells[i].width = w
+for i in range(3):
     set_cell_borders(strip.rows[0].cells[i])
-    strip.rows[0].cells[i].paragraphs[0].paragraph_format.space_after = Pt(0)
-    strip.rows[0].cells[i].paragraphs[0].add_run().add_picture(str(stocks[i]), width=w, height=Mm(38))
+    cp = strip.rows[0].cells[i].paragraphs[0]
+    cp.paragraph_format.space_after = Pt(0)
+    cp.add_run().add_picture(str(stocks[i]),
+                             width=Cm(CONTENT_W_CM / 3), height=Mm(40))
 
-# Red title block
+# Red title block spans full content width
 red = doc.add_table(rows=1, cols=1)
-red.autofit = False
-red.rows[0].cells[0].width = Cm(17)
+set_table_full_width(red)
+apply_col_widths(red, [CONTENT_W_CM])
 rcell = red.rows[0].cells[0]
 set_cell_shading(rcell, COVER_RED)
-set_cell_margins(rcell, top=380, bottom=380, left=380, right=380)
+set_cell_margins(rcell, top=420, bottom=420, left=420, right=420)
 set_cell_borders(rcell)
 rcp = rcell.paragraphs[0]
 rcp.paragraph_format.space_after = Pt(4)
-add_run(rcp, "OC4IDS FIELD-LEVEL MAPPING REPORT", bold=True, size_pt=12, color=WHITE)
+add_run(rcp, "STRUCTURAL REFERENCE", bold=True, size_pt=11, color=WHITE)
 rcp2 = rcell.add_paragraph()
-rcp2.paragraph_format.space_after = Pt(4)
-add_run(rcp2, "Findings, gaps, and the path to an Information Platform for Public Infrastructure in Zambia",
-        bold=True, size_pt=20, color=WHITE)
+rcp2.paragraph_format.space_after = Pt(6)
+add_run(rcp2, "What a revised OC4IDS field-level mapping report can look like",
+        bold=True, size_pt=18, color=WHITE)
 rcp3 = rcell.add_paragraph()
 rcp3.paragraph_format.space_after = Pt(0)
-add_run(rcp3, "Sample corrected reference  ·  Overlay v0.9  ·  2026-04-23", size_pt=10, color=WHITE)
+add_run(rcp3, "A short illustrative extract.  Zambia context.  23 April 2026.",
+        size_pt=10, color=WHITE)
 
-para(doc, "", space_after=4)
+para(doc, "", space_after=6)
 
-# Metadata under red block
-meta = doc.add_table(rows=4, cols=2)
-meta.autofit = False
-for r in meta.rows:
-    r.cells[0].width = Cm(4)
-    r.cells[1].width = Cm(13)
-for i, (k, v) in enumerate([
-    ("Publisher:", "National Council for Construction (NCC) and Zambia Public Procurement Authority (ZPPA); coordinated by CoST Zambia."),
-    ("Prepared by:", "Zambia Technical Team (NCC, ZPPA, CoST Zambia), with support from CoST International Secretariat."),
-    ("Review framework:", "OC4IDS v0.9.5 Field-Level Mapping Template. Overlay v0.9 rubric applied 2026-04-23."),
-    ("Publication licence:", "CC BY 4.0  ·  www.infrastructuretransparency.org"),
-]):
-    kc = meta.rows[i].cells[0]
-    vc = meta.rows[i].cells[1]
-    for c in (kc, vc):
-        set_cell_borders(c)
-    add_run(kc.paragraphs[0], k, bold=True, size_pt=9.5, color=DMUTED)
-    add_run(vc.paragraphs[0], v, size_pt=9.5, color=CHARCOAL)
+# Non-commitment disclaimer
+db = doc.add_table(rows=1, cols=1)
+set_table_full_width(db)
+apply_col_widths(db, [CONTENT_W_CM])
+dc = db.cell(0, 0)
+set_cell_shading(dc, LIGHT_NEUTRAL)
+set_cell_borders(dc, left="single", color=hex_of(YELLOW), sz="32")
+set_cell_margins(dc, top=200, bottom=200, left=240, right=240)
+dcp = dc.paragraphs[0]
+add_run(dcp, "HOW TO READ THIS DOCUMENT  ", bold=True, size_pt=10, color=DMUTED)
+add_run(dcp, "This is a structural reference. It is not a commitment document, and it is not a rewrite of the Zambia team's report. Every figure, owner, timeline and legal instrument shown below is a ",
+        size_pt=10, color=CHARCOAL)
+add_run(dcp, "placeholder",
+        bold=True, italic=True, size_pt=10, color=CHARCOAL)
+add_run(dcp, ", included to show the kind of specificity a strong report carries. Any actual assignment of owners, timelines, or legal actions should follow consultation through the CoST Zambia MSG, NCC, ZPPA, and the relevant line ministry.",
+        size_pt=10, color=CHARCOAL)
 
-# Legal footer
-para(doc, "CoST, the Infrastructure Transparency Initiative  ·  Company number 8159144  ·  Charity number 1152236",
-     size_pt=7.5, italic=True, color=LMUTED, align=WD_ALIGN_PARAGRAPH.CENTER, space_after=0)
+para(doc, "", space_after=10)
 
-# ─── Page 2: Executive summary ──────────────────────────────────────────────
-doc.add_page_break()
-heading(doc, "Executive summary", level=1)
+# ─── Executive summary excerpt ──────────────────────────────────────────────
+heading(doc, "1.  Executive summary: the kind of opening this report needs", level=1)
 
-# Headline verdict box
 vb = doc.add_table(rows=1, cols=1)
+set_table_full_width(vb)
+apply_col_widths(vb, [CONTENT_W_CM])
 vc = vb.cell(0, 0)
 set_cell_shading(vc, LGRAY)
 set_cell_borders(vc, top="single", bottom="single", color=hex_of(RED), sz="24")
 set_cell_margins(vc, top=200, bottom=200, left=240, right=240)
 vp = vc.paragraphs[0]
-add_run(vp, "VERDICT   ", bold=True, size_pt=10, color=RED)
-add_run(vp, "Zambia's e-GP system can publish 35 OC4IDS fields today. Another 20 need light transformation. Most of the rest is already collected by the National Council for Construction under the NCC Act 2020; it is a disclosure gap, not a data gap.",
+add_run(vp, "VERDICT  ", bold=True, size_pt=10, color=RED)
+add_run(vp, "Zambia's procurement system can publish roughly 35 OC4IDS fields today with no new work, and another 20 after small format fixes. Most of the information that is missing, including contract variations, progress reports, and payment records, is already collected by the National Council for Construction under its statutory monitoring mandate. It is a disclosure gap, not a data gap.",
         bold=True, size_pt=11, color=CHARCOAL)
 vp2 = vc.add_paragraph()
 vp2.paragraph_format.space_before = Pt(4)
-add_run(vp2, "The Access to Information Act 2023 (s.8) already mandates proactive publication of 46 of the missing fields. The proposed Information Platform for Public Infrastructure (IPPI-Zambia) is the integration layer this analysis calls for.",
+add_run(vp2, "The Access to Information Act 2023 section 8 already requires proactive publication of most of the missing information. The proposed Information Platform for Public Infrastructure (IPPI-Zambia) is the integration layer this analysis calls for.",
         size_pt=10.5, color=CHARCOAL)
 
 para(doc, "", space_after=10)
 
-heading(doc, "Headline numbers", level=2)
+heading(doc, "The three numbers a revised report should lead with", level=2)
 
-# Stat strip
-stats = doc.add_table(rows=1, cols=4)
-stats.autofit = False
-for c in stats.rows[0].cells:
-    c.width = Cm(4.2)
+stats = doc.add_table(rows=1, cols=3)
+set_table_full_width(stats)
+apply_col_widths(stats, [CONTENT_W_CM / 3, CONTENT_W_CM / 3, CONTENT_W_CM / 3])
 
 stat_data = [
-    ("4.9%", "of the 1,480 OC4IDS template slots mapped from the ZPPA e-GP system (73 fields).", RED),
-    ("97.9%", "of the 48 ZPPA e-GP source data elements successfully forward-mapped to OC4IDS.", BLUE),
-    ("35", "OC4IDS fields can be published immediately with no new system work.", LOW_TEXT),
-    ("46", "OC4IDS fields that the Access to Information Act 2023 already mandates for disclosure.", YELLOW),
+    ("35",
+     "OC4IDS fields the ZPPA e-GP system can publish today. [Placeholder figure from current mapping, to be confirmed through MSG review.]",
+     LOW_TEXT),
+    ("55",
+     "OC4IDS fields publishable after small format fixes (35 today plus 20 light transformation).",
+     BLUE),
+    ("Yes",
+     "Does Zambia's existing law (ATI Act 2023 s.8, NCC Act 2020 s.53) already permit publication of most currently missing fields? The answer determines whether this is a disclosure problem or a legal problem.",
+     RED),
 ]
-
 for i, (val, label, col) in enumerate(stat_data):
     cell = stats.rows[0].cells[i]
     set_cell_shading(cell, LGRAY)
     set_cell_margins(cell, top=200, bottom=200, left=200, right=200)
     set_cell_borders(cell, top="single", color=hex_of(col), sz="32")
     p1 = cell.paragraphs[0]
-    p1.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    add_run(p1, val, bold=True, size_pt=22, color=col)
+    add_run(p1, val, bold=True, size_pt=28, color=col)
     p2 = cell.add_paragraph()
     p2.paragraph_format.space_before = Pt(2)
     add_run(p2, label, size_pt=9, color=DMUTED)
 
-para(doc, "", space_after=12)
-
-heading(doc, "Top three strengths", level=2)
-for s in [
-    "Legal framework analysis already cites ATI Act 2023 s.6/8/9/17, ZPPA Act No.3/2020 s.67/70, and NCC Act No.10/2020 s.5/31/33/53. Most OC4IDS publication requirements are already in law.",
-    "Source forward-mapping is at 97.9%, 47 of 48 ZPPA e-GP data elements map cleanly to an OC4IDS path.",
-    "Procurement phase is the strongest: 20 of 153 Contracting Process fields populated (13.1%), with clean source paths like zppa_egp.contracts.contracts.id.",
-]:
-    p = doc.add_paragraph()
-    p.paragraph_format.space_after = Pt(4)
-    add_run(p, "+  ", bold=True, size_pt=10.5, color=LOW_TEXT)
-    add_run(p, s, size_pt=10.5, color=CHARCOAL)
-
-heading(doc, "Top three gaps", level=2)
-for g in [
-    "Implementation stage is effectively blank: 2% of fields populated. Contract variations, payment certificates, quality assurance reports, progress updates, none are captured in ZPPA.",
-    "Maintenance and decommissioning return zero mapped fields. Beyond-completion transparency requires new capture workflows.",
-    "Parties and Linked Releases sheets are silent: 18 of 968 Parties fields (1.9%) and 0 of 6 Linked Release fields mapped. Role, beneficial-ownership, and contract-release structure are absent.",
-]:
-    p = doc.add_paragraph()
-    p.paragraph_format.space_after = Pt(4)
-    add_run(p, "-  ", bold=True, size_pt=10.5, color=RED)
-    add_run(p, g, size_pt=10.5, color=CHARCOAL)
-
-heading(doc, "Headline recommendation", level=2)
-para(doc, "Build IPPI-Zambia as an integration layer, not a new collection system. The e-GP holds procurement; the NCC holds implementation, quality, and registration; the ATI Act 2023 mandates publication of both. Integration, not data collection, is the operative task.",
-     size_pt=10.5, color=CHARCOAL, space_after=8)
-para(doc, "Plain-language summary. Zambia already collects most of the information OC4IDS requires. It lives in two separate government systems. The job is to connect them, and to publish what the law already says must be public.",
-     size_pt=10.5, color=DMUTED, italic=True, space_after=12)
-
-# ─── Page 3: Scope, methodology, sample ─────────────────────────────────────
-doc.add_page_break()
-heading(doc, "1.  Scope, methodology, and sample", level=1)
-
-heading(doc, "1.1  Systems reviewed", level=2)
-scope = doc.add_table(rows=5, cols=4)
-scope.autofit = False
-widths = [Cm(4.5), Cm(3), Cm(4), Cm(5.5)]
-for row in scope.rows:
-    for c, w in zip(row.cells, widths):
-        c.width = w
-# Header
-hdr = ["System", "Owner", "Access method", "Coverage"]
-for i, h in enumerate(hdr):
-    c = scope.rows[0].cells[i]
-    set_cell_shading(c, TABLE_RED)
-    add_run(c.paragraphs[0], h, bold=True, size_pt=10, color=WHITE)
-rows = [
-    ("ZPPA e-GP System\neprocure.zppa.org.zm", "Zambia Public Procurement Authority", "Web portal + database extract", "Full procurement stage"),
-    ("NCC Inspection Forms", "National Council for Construction", "Paper and digital forms", "Implementation: progress, quality, safety"),
-    ("NCC Contractor Register", "National Council for Construction", "Structured database", "Party data: grade, class, performance"),
-    ("NCC Project Register", "National Council for Construction", "Structured database", "Project identification and contract data"),
-]
-for ri, r in enumerate(rows, start=1):
-    for ci, v in enumerate(r):
-        c = scope.rows[ri].cells[ci]
-        set_cell_shading(c, LGRAY if ri % 2 == 0 else WHITE)
-        set_cell_borders(c)
-        add_run(c.paragraphs[0], v, size_pt=9.5, color=CHARCOAL)
-
-para(doc, "", space_after=8)
-heading(doc, "1.2  Sample", level=2)
-para(doc, "ZPPA e-GP system analysis covered all procurement records published via eprocure.zppa.org.zm for financial years 2022/23 and 2023/24, with spot-checks against live records accessed on 2026-03-14, 2026-03-18, and 2026-03-21. Sector coverage: transport, energy, water and public buildings. Sampling method: universe review of published OC4IDS-mappable fields; purposive sample of 50 live procurement records for field-population checks.",
-     size_pt=10.5, space_after=8)
-
-heading(doc, "1.3  Methodology", level=2)
-method = [
-    ("Standard version", "OC4IDS v0.9.5 (January 2024 release). The team did not map against earlier versions; no deprecation impact."),
-    ("Evaluation criteria", "Each field classified as Populated / Partial / Missing / Not Applicable. NA entries carry a one-line justification (e.g. sector-irrelevant, or replaced by a country-specific field)."),
-    ("Verification", "Mapped fields cross-checked against 50 live procurement records for field-population rates. Source system paths traced to the database schema, not inferred from portal display."),
-    ("Legal alignment test", "Each OC4IDS field cross-checked against ATI Act 2023 s.8, ZPPA Act No.3/2020 s.67 and s.70, NCC Act No.10/2020 s.5 and s.53 for statutory publication authority."),
-    ("Gap classification", "Overlay 8-category typology applied (no data / outside system / unstructured / poor quality / unlinkable / collected-not-disclosed / blocked / country-specific)."),
-    ("Reproducibility", "Coverage numbers are re-derivable from the attached template by counting populated 'Mapping' column cells per sheet."),
-]
-mt = doc.add_table(rows=len(method), cols=2)
-mt.autofit = False
-for r in mt.rows:
-    r.cells[0].width = Cm(4.2)
-    r.cells[1].width = Cm(12.8)
-for i, (k, v) in enumerate(method):
-    kc = mt.rows[i].cells[0]
-    vc = mt.rows[i].cells[1]
-    for c in (kc, vc):
-        set_cell_borders(c)
-    add_run(kc.paragraphs[0], k, bold=True, size_pt=10, color=DMUTED)
-    add_run(vc.paragraphs[0], v, size_pt=10, color=CHARCOAL)
-
-# ─── Page 4: Quantitative backbone ──────────────────────────────────────────
-doc.add_page_break()
-heading(doc, "2.  Field-level coverage", level=1)
-
-para(doc, "Zambia's template maps 73 of 1,480 OC4IDS slots (4.9%). Two sheets stand out as strong; two as silent. All mapped fields are substantive (no placeholders).",
-     size_pt=10.5, space_after=8)
-
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-p.add_run().add_picture(str(CHARTS / "01-sheet-coverage.png"), width=Cm(15))
-para(doc, "", space_after=4)
-
-# Per-sheet table
-st = doc.add_table(rows=6, cols=5)
-st.autofit = False
-widths = [Cm(4.5), Cm(2.8), Cm(2.8), Cm(2.8), Cm(4.1)]
-for r in st.rows:
-    for c, w in zip(r.cells, widths):
-        c.width = w
-for i, h in enumerate(["Sheet", "Mapped", "Slots", "%", "Dominant gap type"]):
-    c = st.rows[0].cells[i]
-    set_cell_shading(c, TABLE_RED)
-    add_run(c.paragraphs[0], h, bold=True, size_pt=10, color=WHITE)
-sheet_rows = [
-    ("Projects", "35", "353", "9.9%", "Preparation + post-completion absent"),
-    ("Contracting Processes", "20", "153", "13.1%", "Award/implementation subpaths silent"),
-    ("Parties", "18", "968", "1.9%", "Beneficial ownership, roles absent"),
-    ("Linked Releases", "0", "6", "0.0%", "No release package structure in use"),
-    ("Total", "73", "1,480", "4.9%", ""),
-]
-for ri, r in enumerate(sheet_rows, start=1):
-    for ci, v in enumerate(r):
-        c = st.rows[ri].cells[ci]
-        set_cell_borders(c)
-        bold = ri == len(sheet_rows)
-        set_cell_shading(c, LGRAY if ri % 2 == 0 and not bold else (LIGHT_NEUTRAL if bold else WHITE))
-        add_run(c.paragraphs[0], v, bold=bold, size_pt=10, color=CHARCOAL)
-
 para(doc, "", space_after=10)
 
-heading(doc, "Source forward-mapping", level=2)
-para(doc, "47 of 48 source data elements in the ZPPA e-GP schema map forward to an OC4IDS path (97.9%). The single unmapped element, a local project-reference sub-field, is preserved as a country-specific extension (see §4).",
-     size_pt=10.5, space_after=12)
+para(doc, "A revised executive summary should pair each of these numbers with a one-sentence explanation and a plain-language reading: the first is the immediate win, the second is a near-term win with light integration work, the third reframes the rest of the report from 'we lack data' to 'we lack disclosure mechanics'.",
+     size_pt=10.5, italic=True, color=DMUTED, space_after=12)
 
-# ─── Page 5: Phase findings ─────────────────────────────────────────────────
+# ─── One phase row as an example ───────────────────────────────────────────
 doc.add_page_break()
-heading(doc, "3.  Findings by lifecycle phase", level=1)
+heading(doc, "2.  Findings by lifecycle phase: what one row should look like", level=1)
 
-para(doc, "Each phase is scored against the OC4IDS fields nominally applicable to it. Implementation, Maintenance, and Decommissioning disclose almost nothing.",
-     size_pt=10.5, space_after=6)
-
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-p.add_run().add_picture(str(CHARTS / "02-phase-coverage.png"), width=Cm(15))
-para(doc, "", space_after=6)
-
-phase_rows = [
-    ("Identification", "28%", "Type-1 / type-2 mix", "Reference number, owner, sector, location, purpose, description, present. Subsector and project brief, absent in system."),
-    ("Preparation", "12%", "Type-1 / type-6", "Scope, budget, approval date, present. Feasibility, ESIA, funding sources, procurement plan, absent from e-GP; partial in line ministries."),
-    ("Procurement", "21%", "Type-6 (mostly in-system but not disclosed)", "Tender, award, contract terms, present with clean source paths. Tender evaluation detail, contract documents, present in e-GP but not publicly disclosed."),
-    ("Implementation", "2%", "Type-6 (the critical gap)", "Variation, payment, progress, quality, safety, collected by NCC under NCC Act s.53, not shared with ZPPA. Remediation is integration, not collection."),
-    ("Completion", "8%", "Type-6", "Current status, projected scope, present. Final cost, completion date actuals, audit and evaluation, exist in NCC and audit bodies, not integrated."),
-    ("Maintenance", "0%", "Type-1 (not collected)", "No schedule, no cost, no inspection data captured. New workflow required."),
-    ("Decommissioning", "0%", "Type-1 (not collected)", "No plans, no environmental assessment, no cost data captured. New workflow required."),
-]
-
-pt = doc.add_table(rows=len(phase_rows) + 1, cols=4)
-pt.autofit = False
-widths = [Cm(3.0), Cm(2.0), Cm(3.8), Cm(8.2)]
-for r in pt.rows:
-    for c, w in zip(r.cells, widths):
-        c.width = w
-for i, h in enumerate(["Phase", "Coverage", "Dominant root cause", "Representative examples"]):
-    c = pt.rows[0].cells[i]
-    set_cell_shading(c, TABLE_RED)
-    add_run(c.paragraphs[0], h, bold=True, size_pt=10, color=WHITE)
-for ri, r in enumerate(phase_rows, start=1):
-    for ci, v in enumerate(r):
-        c = pt.rows[ri].cells[ci]
-        set_cell_borders(c)
-        set_cell_shading(c, LGRAY if ri % 2 == 0 else WHITE)
-        if ci == 0:
-            add_run(c.paragraphs[0], v, bold=True, size_pt=9.5, color=CHARCOAL)
-        elif ci == 1:
-            val = float(v.rstrip('%'))
-            colour = RED if val < 10 else (YELLOW if val < 20 else LOW_TEXT)
-            add_run(c.paragraphs[0], v, bold=True, size_pt=10, color=colour)
-        else:
-            add_run(c.paragraphs[0], v, size_pt=9.5, color=CHARCOAL)
-
-# ─── Page 6: Source-field provenance sample ─────────────────────────────────
-doc.add_page_break()
-heading(doc, "4.  Source-field provenance (extract)", level=1)
-
-para(doc, "Each OC4IDS path that Zambia can publish today traces to a specific ZPPA e-GP source path. The full provenance table is in Annex C; a representative sample is below.",
+para(doc, "The current draft's section 4 describes each phase in prose. A single table row, quantified, with a named reason for the gap, carries far more for a reader. One row is shown here to illustrate the format; the revised report should carry one row for each of the seven lifecycle phases.",
      size_pt=10.5, space_after=8)
 
-prov_rows = [
-    ("/id", "zppa_egp.project.project.id", "Populated", "Publish now"),
-    ("/updated", "zppa_egp.project.updated", "Populated", "Publish now"),
-    ("/publicAuthority/name", "zppa_egp.project.publicAuthority.name", "Populated", "Publish now"),
-    ("/title", "zppa_egp.project.title", "Populated", "Publish now"),
-    ("/description", "zppa_egp.project.description", "Partial", "Light transformation (free-text standardisation)"),
-    ("contractingProcesses/id", "zppa_egp.contracts.contracts.id", "Populated", "Publish now"),
-    ("contractingProcesses/summary/title", "zppa_egp.contracts.contracts.title", "Populated", "Publish now"),
-    ("contractingProcesses/summary/tender/value", "zppa_egp.tender.tender.value", "Populated", "Publish now"),
-    ("contractingProcesses/summary/award/value", "zppa_egp.contracts.contracts.value", "Populated", "Publish now"),
-    ("contractingProcesses/summary/modifications", "(absent in e-GP; present in NCC Act s.53 monitoring data)", "Missing, type 6", "System change + integration"),
-    ("parties/id", "zppa_egp.parties.parties.id", "Populated", "Publish now"),
-    ("parties/identifier/scheme", "zppa_egp.parties.parties.identifier.scheme", "Populated", "Publish now"),
-    ("parties/beneficialOwnership/*", "(absent in both systems)", "Missing, type 1 / 7", "Legal + system change"),
-]
-
-pr = doc.add_table(rows=len(prov_rows) + 1, cols=4)
-pr.autofit = False
-widths = [Cm(4.0), Cm(6.0), Cm(2.5), Cm(4.5)]
-for r in pr.rows:
-    for c, w in zip(r.cells, widths):
-        c.width = w
-for i, h in enumerate(["OC4IDS path", "ZPPA e-GP source path", "Status", "Disclosure pathway"]):
-    c = pr.rows[0].cells[i]
+ph = doc.add_table(rows=2, cols=4)
+set_table_full_width(ph)
+apply_col_widths(ph, [3.0, 2.2, 4.0, 7.8])
+for i, h in enumerate(["Phase", "Coverage", "Dominant reason for the gap", "Example"]):
+    c = ph.rows[0].cells[i]
     set_cell_shading(c, TABLE_RED)
     add_run(c.paragraphs[0], h, bold=True, size_pt=10, color=WHITE)
-for ri, r in enumerate(prov_rows, start=1):
-    for ci, v in enumerate(r):
-        c = pr.rows[ri].cells[ci]
-        set_cell_borders(c)
-        set_cell_shading(c, LGRAY if ri % 2 == 0 else WHITE)
-        sz = 9
-        if ci == 0:
-            add_run(c.paragraphs[0], v, size_pt=sz, color=CHARCOAL, font="Courier New")
-        elif ci == 1:
-            color = CHARCOAL if "absent" not in v else DMUTED
-            add_run(c.paragraphs[0], v, size_pt=sz, color=color, font="Courier New", italic=("absent" in v))
-        elif ci == 2:
-            col = LOW_TEXT if v == "Populated" else (YELLOW if "Partial" in v else RED)
-            add_run(c.paragraphs[0], v, bold=True, size_pt=sz, color=col)
-        else:
-            add_run(c.paragraphs[0], v, size_pt=sz, color=CHARCOAL)
+row = ph.rows[1].cells
+for c in row:
+    set_cell_borders(c)
+    set_cell_shading(c, WHITE)
+add_run(row[0].paragraphs[0], "Implementation", bold=True, size_pt=10, color=CHARCOAL)
+add_run(row[1].paragraphs[0], "2%", bold=True, size_pt=12, color=RED)
+add_run(row[2].paragraphs[0], "Collected but not yet publicly disclosed. Data sits in NCC inspection records.",
+        size_pt=10, color=CHARCOAL)
+add_run(row[3].paragraphs[0], "Contract variations, progress updates, payment certificates, and quality-assurance reports are captured by NCC under NCC Act 2020 s.53 and shared with ZPPA only on request. Integration, not new collection, is the remediation.",
+        size_pt=10, color=CHARCOAL)
 
-para(doc, "", space_after=8)
+para(doc, "", space_after=14)
 
-# Country-specific note
-heading(doc, "Country-specific fields retained as extensions", level=2)
-para(doc, "Zambia's e-GP uses a local project-reference format that does not fit OC4IDS's id pattern. The team recommends preserving it as an extension and proposing a country-context schema note to OCP for future OC4IDS revisions. Full extension list in Annex D.",
-     size_pt=10.5, space_after=12)
+# ─── One provenance row ─────────────────────────────────────────────────────
+heading(doc, "3.  Source-field provenance: what one row should look like", level=1)
 
-# ─── Page 7: Gap typology + legal crosswalk ────────────────────────────────
-doc.add_page_break()
-heading(doc, "5.  Why the gaps exist: typology and legal lever", level=1)
+para(doc, "Every mapped OC4IDS field in the Zambia template is already traced to a specific ZPPA e-GP source path. The report should surface this in the annex. An example of the target format:",
+     size_pt=10.5, space_after=8)
 
-para(doc, "Each material gap is classified by root cause. Different root causes take different fixes. The two dominant categories in Zambia are type-6 (collected but not disclosed) and type-1 (not collected at all).",
-     size_pt=10.5, space_after=10)
+pv = doc.add_table(rows=2, cols=4)
+set_table_full_width(pv)
+apply_col_widths(pv, [4.0, 5.8, 2.5, 4.7])
+for i, h in enumerate(["OC4IDS path", "ZPPA e-GP source path", "Status", "Disclosure pathway"]):
+    c = pv.rows[0].cells[i]
+    set_cell_shading(c, TABLE_RED)
+    add_run(c.paragraphs[0], h, bold=True, size_pt=10, color=WHITE)
+row = pv.rows[1].cells
+for c in row:
+    set_cell_borders(c)
+    set_cell_shading(c, WHITE)
+add_run(row[0].paragraphs[0], "/publicAuthority/name", size_pt=9.5, color=CHARCOAL, font="Courier New")
+add_run(row[1].paragraphs[0], "zppa_egp.project.publicAuthority.name",
+        size_pt=9.5, color=CHARCOAL, font="Courier New")
+add_run(row[2].paragraphs[0], "Populated", bold=True, size_pt=10, color=LOW_TEXT)
+add_run(row[3].paragraphs[0], "Ready to publish", size_pt=10, color=CHARCOAL)
 
-typo_rows = [
-    ("Type 1", "No data exists", "Maintenance schedules, decommissioning plans.", "New capture workflow + budget line."),
-    ("Type 2", "Outside reviewed system", "Feasibility studies, audit reports.", "Add to source inventory; integrate."),
-    ("Type 3", "Unstructured documents only", "Project briefs, ESIA narratives.", "Fielded metadata at upload."),
-    ("Type 4", "Poor quality", "Some tender evaluation free-text fields.", "Standardisation before publication."),
-    ("Type 5", "Cannot be linked", "Contractor IDs across registers.", "Master data management; common identifier."),
-    ("Type 6", "Collected but not disclosed", "Contract variations, payment certs, progress reports (held by NCC).", "Integration + statutory disclosure."),
-    ("Type 7", "Workflow or legal constraint", "Beneficial ownership.", "Requires law or regulation change."),
-    ("Type 8", "Country-specific, not in template", "Local project-reference scheme.", "Preserve as extension; propose upstream."),
+para(doc, "", space_after=14)
+
+# ─── Gap typology table (full, because it generalises) ─────────────────────
+heading(doc, "4.  Gap typology: every gap should be named by its cause", level=1)
+
+para(doc, "A review of the current draft classifies every material gap into one of the categories below. Different causes take different fixes. Naming them explicitly reframes 'recommendations' from a shopping list into a sequenced programme.",
+     size_pt=10.5, space_after=8)
+
+typology = [
+    ("Not collected", "Data does not exist in any reviewed system.",
+     "Maintenance schedules; decommissioning plans.",
+     "New capture workflow plus budget line."),
+    ("Collected but not yet disclosed",
+     "Data exists inside government, often with legal disclosure authority, but does not reach the public.",
+     "Contract variations and payment certificates held by NCC.",
+     "Integration between systems. A short statutory instrument may be sufficient."),
+    ("Only in unstructured documents",
+     "Data exists but sits inside PDFs or scanned forms, unfielded.",
+     "Project briefs and ESIA narratives.",
+     "Fielded metadata at upload; structured replacement for inspection PDFs."),
+    ("Collected inconsistently",
+     "Data captured on some projects, not others; format varies.",
+     "Some tender-evaluation free-text fields.",
+     "Standardisation before publication."),
+    ("Restricted by law or workflow",
+     "Data exists but a specific legal provision or internal policy blocks disclosure.",
+     "Beneficial ownership of contracting firms.",
+     "Regulation or policy change, not a technical fix."),
 ]
-tt = doc.add_table(rows=len(typo_rows) + 1, cols=4)
-tt.autofit = False
-widths = [Cm(1.5), Cm(4.5), Cm(6.0), Cm(5.0)]
-for r in tt.rows:
-    for c, w in zip(r.cells, widths):
-        c.width = w
-for i, h in enumerate(["#", "Category", "Zambia example", "Remediation"]):
+
+tt = doc.add_table(rows=len(typology) + 1, cols=4)
+set_table_full_width(tt)
+apply_col_widths(tt, [3.6, 4.6, 4.4, 4.4])
+for i, h in enumerate(["Cause", "What it means", "Example in Zambia", "What fixes it"]):
     c = tt.rows[0].cells[i]
     set_cell_shading(c, TABLE_RED)
     add_run(c.paragraphs[0], h, bold=True, size_pt=10, color=WHITE)
-for ri, r in enumerate(typo_rows, start=1):
-    for ci, v in enumerate(r):
-        c = tt.rows[ri].cells[ci]
+for ri, row in enumerate(typology, start=1):
+    cells = tt.rows[ri].cells
+    bg = LGRAY if ri % 2 == 0 else WHITE
+    accent = ri == 2  # "Collected but not yet disclosed" is the dominant Zambia cause
+    for c in cells:
         set_cell_borders(c)
-        set_cell_shading(c, LGRAY if ri % 2 == 0 else WHITE)
-        # Accent type 6 (the dominant one)
-        is_t6 = r[0] == "Type 6"
-        if ci == 0:
-            add_run(c.paragraphs[0], v, bold=True, size_pt=9.5, color=RED if is_t6 else CHARCOAL)
-        else:
-            add_run(c.paragraphs[0], v, bold=is_t6 and ci == 1, size_pt=9.5, color=CHARCOAL)
+        set_cell_shading(c, bg)
+    for ci, v in enumerate(row):
+        add_run(cells[ci].paragraphs[0], v,
+                bold=(ci == 0 and accent),
+                size_pt=9.5,
+                color=(RED if ci == 0 and accent else CHARCOAL))
+
+para(doc, "", space_after=8)
+para(doc, "The dominant cause in Zambia is the second one: data already collected by NCC that is not yet publicly disclosed. Naming that out loud changes the whole recommendations section.",
+     size_pt=10.5, italic=True, color=DMUTED, space_after=14)
+
+# ─── One recommendation row ────────────────────────────────────────────────
+doc.add_page_break()
+heading(doc, "5.  Recommendations: what one row should look like", level=1)
+
+para(doc, "The current draft's section 6 lists six recommendations. All are directional. Below is an example of the format a strong recommendation takes. Owners and timelines shown here are placeholders pending MSG consultation.",
+     size_pt=10.5, space_after=8)
+
+rec_t = doc.add_table(rows=2, cols=7)
+set_table_full_width(rec_t)
+apply_col_widths(rec_t, [0.9, 2.6, 3.8, 2.8, 2.8, 1.6, 2.5])
+for i, h in enumerate(["Ref", "Type", "Action", "Proposed owner", "Legal basis", "Quarter", "Effort"]):
+    c = rec_t.rows[0].cells[i]
+    set_cell_shading(c, TABLE_RED)
+    add_run(c.paragraphs[0], h, bold=True, size_pt=9.5, color=WHITE)
+row = rec_t.rows[1].cells
+for c in row:
+    set_cell_borders(c)
+    set_cell_shading(c, WHITE)
+add_run(row[0].paragraphs[0], "R1", bold=True, size_pt=10, color=CHARCOAL)
+add_run(row[1].paragraphs[0], "Immediate no-regret fix", bold=True, size_pt=9, color=LOW_TEXT)
+p_act = row[2].paragraphs[0]
+add_run(p_act, "Publish the 35 'ready to publish' fields through an OC4IDS-compliant feed on the ZPPA e-GP portal.",
+        bold=True, size_pt=9.5, color=CHARCOAL)
+p_act2 = row[2].add_paragraph()
+p_act2.paragraph_format.space_before = Pt(2)
+add_run(p_act2, "Uses existing source paths. No new data collection. CC BY 4.0 licence.",
+        size_pt=9, color=DMUTED, italic=True)
+add_run(row[3].paragraphs[0],
+        "[Proposed: ZPPA Director of IT. To be confirmed through MSG.]",
+        size_pt=9, color=CHARCOAL, italic=True)
+add_run(row[4].paragraphs[0], "ATI Act 2023 s.8; ZPPA Act 2020 s.67",
+        size_pt=9, color=CHARCOAL)
+add_run(row[5].paragraphs[0], "[Placeholder]", bold=True, size_pt=9.5, color=RED, italic=True)
+add_run(row[6].paragraphs[0], "Low", size_pt=9, color=CHARCOAL)
 
 para(doc, "", space_after=10)
 
-heading(doc, "5.1  Legal anchoring", level=2)
+para(doc, "A revised recommendations section would carry eight to ten rows in this format, grouped into four types: immediate no-regret fixes, system or configuration changes, institutional or process changes, and policy or legal changes.",
+     size_pt=10.5, italic=True, color=DMUTED, space_after=14)
 
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-p.add_run().add_picture(str(CHARTS / "04-legal-crosswalk.png"), width=Cm(15))
-para(doc, "", space_after=4)
+# ─── Decision panel (the steering view) ────────────────────────────────────
+heading(doc, "6.  Decision summary: what the Permanent Secretary reads first", level=1)
 
-para(doc, "The Access to Information Act 2023 s.8 already mandates proactive publication of 46 OC4IDS fields. The NCC Act No.10/2020 s.53 authorises monitoring data collection that covers a further 55 fields. The ZPPA Act No.3/2020 s.67 and s.70 cover 20 procurement-transparency fields. Full crosswalk in Annex B.",
-     size_pt=10.5, space_after=6)
-
-para(doc, "Implication: publishing most of the missing implementation data does not require a new law. It requires an integration layer and a statutory instrument clarifying inter-agency data sharing.",
-     size_pt=10.5, bold=True, color=CHARCOAL, space_after=12)
-
-# ─── Page 8: Decision summary + recommendations ─────────────────────────────
-doc.add_page_break()
-heading(doc, "6.  Decision summary: what Zambia can publish now, and what needs to change", level=1)
-
-para(doc, "Every publishable element is classified into one of four buckets. Government and MSG readers should be able to act on this table without reading the rest of the report.",
+para(doc, "This is the single table the revised report needs most. It classifies every publishable element into one of four pathways, matched to who can act and under which law. Numbers below are placeholders drawn from the current mapping template; the revised report should produce a version reviewed by the Zambia team before publication.",
      size_pt=10.5, space_after=8)
 
 p = doc.add_paragraph()
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-p.add_run().add_picture(str(CHARTS / "03-decision-buckets.png"), width=Cm(15))
-para(doc, "", space_after=4)
+p.add_run().add_picture(str(CHARTS / "03-decision-buckets.png"), width=Cm(CONTENT_W_CM - 1))
+para(doc, "", space_after=6)
 
 buckets = [
-    ("(a) Publish now", "Fields already mapped in e-GP with clean source paths and legal authority.",
-     "35 fields. Project IDs, titles, sectors, publicAuthority, procurement method, tender and contract values, contractor IDs.",
+    ("Ready to publish",
+     "Fields the ZPPA e-GP system already holds with clean source paths and clear legal authority.",
+     "≈ 35 fields. Project IDs, titles, sectors, procurement method, tender values.",
      LOW_TEXT),
-    ("(b) Publish after light transformation", "Fields present but needing format conversion, standardisation, or codelist alignment.",
-     "20 fields. Free-text descriptions, date-format reconciliation, sector-code mapping to OC4IDS codelists.",
+    ("Small format fixes",
+     "Fields present but needing date-format conversion, codelist alignment, or free-text standardisation.",
+     "≈ 20 fields. Descriptions, sector codes, date harmonisation.",
      BLUE),
-    ("(c) Requires system change", "Fields NCC already collects under NCC Act s.53 that need an integration layer to reach the public.",
-     "73 fields. Contract variations, progress updates, quality and safety reports, disbursement certificates, final costs.",
+    ("Needs system work",
+     "Fields NCC already collects under NCC Act 2020 s.53 but that need an integration layer to reach the public.",
+     "≈ 73 fields. Contract variations, progress, quality and safety, payments, final costs.",
      YELLOW),
-    ("(d) Requires legal or institutional action", "Fields blocked by absence of a statutory instrument, regulation, or workflow.",
-     "25 fields. Beneficial ownership, maintenance schedules, decommissioning plans, some audit and evaluation disclosures.",
+    ("Needs policy action",
+     "Fields blocked by absence of a regulation, statutory instrument, or internal approval workflow.",
+     "≈ 25 fields. Beneficial ownership; maintenance and decommissioning capture.",
      RED),
 ]
 
 bt = doc.add_table(rows=len(buckets), cols=3)
-bt.autofit = False
-widths = [Cm(4.5), Cm(6.5), Cm(6.0)]
-for r in bt.rows:
-    for c, w in zip(r.cells, widths):
-        c.width = w
+set_table_full_width(bt)
+apply_col_widths(bt, [4.5, 6.5, 6.0])
 for ri, (label, what, example, col) in enumerate(buckets):
     cells = bt.rows[ri].cells
     set_cell_borders(cells[0], left="single", color=hex_of(col), sz="32")
@@ -603,232 +485,14 @@ for ri, (label, what, example, col) in enumerate(buckets):
 
 para(doc, "", space_after=12)
 
-# ─── Page 9: Recommendations ────────────────────────────────────────────────
-doc.add_page_break()
-heading(doc, "7.  Recommendations", level=1)
+# ─── Closing note ───────────────────────────────────────────────────────────
+heading(doc, "7.  Using this reference", level=1)
 
-para(doc, "Each recommendation carries a stable identifier (R1, R2, ...), a named owner, a timeline, an effort level, and the specific legal provision it operationalises. The implementation roadmap in §8 references these IDs.",
+para(doc, "This document is structural guidance. It shows the shape and specificity a strong report carries; it does not prescribe Zambia's final content. The revised report should preserve what the Zambia team already did well (the legal framework analysis in Annex 8.1, the NCC insight, the 97.9% source forward-mapping) and apply the formats above to the sections CoST IS has flagged for revision.",
      size_pt=10.5, space_after=10)
 
-recs = [
-    # (id, layer, title, detail, owner, legal, timeline, effort)
-    ("R1", "Immediate no-regret fix",
-     "Publish the 35 'publish now' fields through an OC4IDS-compliant feed on eprocure.zppa.org.zm.",
-     "Use existing e-GP source paths (provenance in Annex C). No new data collection. CC BY 4.0 licence.",
-     "ZPPA Director of IT", "ATI Act 2023 s.8; ZPPA Act 2020 s.67", "Q3 2026", "Low"),
-    ("R2", "Immediate no-regret fix",
-     "Close 20 'light transformation' fields by aligning codelists and date formats.",
-     "Sector code mapping, date-format reconciliation, free-text standardisation. Script-level changes only.",
-     "ZPPA Director of IT + CoST Zambia ODS lead", "ATI Act 2023 s.8", "Q3 2026", "Low"),
-    ("R3", "System / configuration change",
-     "Build IPPI-Zambia as the integration layer between ZPPA e-GP and NCC registers.",
-     "Connects e-GP procurement records with NCC inspection, contractor, and project data. Target: 73 currently-blocked fields.",
-     "NCC CEO + ZPPA Director General, CoST Zambia as delivery partner", "NCC Act 2020 s.5(k), s.5(l), s.53; ATI Act 2023 s.8",
-     "Q1 2027 prototype; Q3 2027 production", "High"),
-    ("R4", "System / configuration change",
-     "Add variation, progress, payment, and quality-assurance capture to the NCC inspection workflow.",
-     "Structured fields replacing PDF-only inspection reports. Output feeds IPPI-Zambia and public OC4IDS feed.",
-     "NCC Director of Construction Monitoring", "NCC Act 2020 s.53", "Q4 2026", "Medium"),
-    ("R5", "Institutional / process change",
-     "Sign a statutory instrument authorising NCC to share OC4IDS-relevant data with ZPPA for publication.",
-     "Closes the \"collected but not disclosed\" type-6 gap across 73 fields without new legislation.",
-     "Minister of Infrastructure, Housing and Urban Development", "NCC Act 2020 s.5; ATI Act 2023 s.8", "Q4 2026", "Medium"),
-    ("R6", "Institutional / process change",
-     "Designate an information officer under ATI Act 2023 s.9 at each of ZPPA, NCC, and CoST Zambia.",
-     "Creates an accountable publication owner in each agency. Enables cross-agency escalation.",
-     "Permanent Secretary, Ministry of Finance (cross-agency coordination)", "ATI Act 2023 s.9",
-     "Q3 2026", "Low"),
-    ("R7", "Policy / legal change",
-     "Introduce beneficial-ownership disclosure requirements via regulation under ZPPA Act No.3/2020.",
-     "Closes the single largest type-7 gap (workflow / legal constraint). Covers 18+ OC4IDS Parties fields.",
-     "ZPPA Director General + Attorney General's Chambers", "ZPPA Act 2020 s.67; proposed new regulation",
-     "Q2 2027", "High"),
-    ("R8", "Policy / legal change",
-     "Amend NCC regulations to require maintenance and decommissioning data capture on all Grade-1 projects.",
-     "Closes the type-1 gap on post-completion transparency (currently 0 of ~40 fields).",
-     "NCC CEO + Ministry of Infrastructure", "NCC Act 2020 s.53; proposed amendment", "Q3 2027", "Medium"),
-]
-
-rt = doc.add_table(rows=len(recs) + 1, cols=7)
-rt.autofit = False
-widths = [Cm(0.9), Cm(2.5), Cm(4.3), Cm(2.7), Cm(2.8), Cm(1.8), Cm(1.5)]
-for r in rt.rows:
-    for c, w in zip(r.cells, widths):
-        c.width = w
-for i, h in enumerate(["ID", "Layer", "Action", "Owner", "Legal basis", "Timeline", "Effort"]):
-    c = rt.rows[0].cells[i]
-    set_cell_shading(c, TABLE_RED)
-    add_run(c.paragraphs[0], h, bold=True, size_pt=9.5, color=WHITE)
-layer_colors = {
-    "Immediate no-regret fix": LOW_TEXT,
-    "System / configuration change": BLUE,
-    "Institutional / process change": YELLOW,
-    "Policy / legal change": RED,
-}
-for ri, (rid, layer, title, detail, owner, legal, tl, effort) in enumerate(recs, start=1):
-    cells = rt.rows[ri].cells
-    set_cell_shading(cells[0], LGRAY if ri % 2 == 0 else WHITE)
-    for c in cells:
-        set_cell_borders(c)
-        set_cell_shading(c, LGRAY if ri % 2 == 0 else WHITE)
-    add_run(cells[0].paragraphs[0], rid, bold=True, size_pt=9.5, color=CHARCOAL)
-    add_run(cells[1].paragraphs[0], layer, bold=True, size_pt=9, color=layer_colors[layer])
-    p_action = cells[2].paragraphs[0]
-    add_run(p_action, title, bold=True, size_pt=9.5, color=CHARCOAL)
-    p_action2 = cells[2].add_paragraph()
-    p_action2.paragraph_format.space_before = Pt(2)
-    add_run(p_action2, detail, size_pt=9, color=DMUTED, italic=True)
-    add_run(cells[3].paragraphs[0], owner, size_pt=9, color=CHARCOAL)
-    add_run(cells[4].paragraphs[0], legal, size_pt=9, color=CHARCOAL)
-    add_run(cells[5].paragraphs[0], tl, bold=True, size_pt=9.5, color=RED)
-    add_run(cells[6].paragraphs[0], effort, size_pt=9, color=CHARCOAL)
-
-para(doc, "", space_after=12)
-
-# ─── Page 10: Roadmap ───────────────────────────────────────────────────────
-doc.add_page_break()
-heading(doc, "8.  Implementation roadmap", level=1)
-
-para(doc, "The roadmap translates recommendations into a dated sequence. Every row references a recommendation ID; emergent items are labelled so. Budgets are order-of-magnitude.",
-     size_pt=10.5, space_after=8)
-
-roadmap = [
-    # (priority, action, owner, dep, timeline, ref, budget)
-    ("Short-term (0 to 3 months)", "Publish OC4IDS feed with 'publish now' 35 fields", "ZPPA Director of IT",
-     "R1, R2", "Q3 2026", "USD 15 to 25k (integration work)"),
-    ("Short-term (0 to 3 months)", "Designate ATI information officers at ZPPA, NCC, CoST Zambia",
-     "Permanent Secretary, MoF", "R6", "Q3 2026", "Nil (existing staff)"),
-    ("Medium-term (3 to 12 months)", "NCC inspection form redesign (structured progress + variation fields)",
-     "NCC Director of Construction Monitoring", "R4", "Q4 2026", "USD 40 to 60k (form redesign + training)"),
-    ("Medium-term (3 to 12 months)", "Statutory instrument on NCC-ZPPA data sharing", "Minister of Infrastructure",
-     "R5", "Q4 2026", "Nil (policy)"),
-    ("Medium-term (3 to 12 months)", "IPPI-Zambia prototype (OC4IDS feed from integrated e-GP + NCC data)",
-     "NCC CEO + ZPPA DG, CoST Zambia delivery", "R3", "Q1 2027", "USD 150 to 220k (platform build)"),
-    ("Long-term (12+ months)", "IPPI-Zambia production release",
-     "NCC CEO + ZPPA DG", "R3, R4, R5", "Q3 2027", "USD 80 to 120k (hardening + hosting)"),
-    ("Long-term (12+ months)", "Beneficial-ownership regulation under ZPPA Act",
-     "ZPPA DG + Attorney General", "R7", "Q2 2027", "Nil (regulation)"),
-    ("Long-term (12+ months)", "NCC regulation amendment on maintenance/decommissioning capture",
-     "NCC CEO + Ministry of Infrastructure", "R8", "Q3 2027", "USD 20 to 40k (regulation + roll-out)"),
-]
-
-rmt = doc.add_table(rows=len(roadmap) + 1, cols=6)
-rmt.autofit = False
-widths = [Cm(3.0), Cm(4.5), Cm(3.2), Cm(1.3), Cm(1.6), Cm(3.2)]
-for r in rmt.rows:
-    for c, w in zip(r.cells, widths):
-        c.width = w
-for i, h in enumerate(["Priority", "Action", "Owner", "Ref", "Timeline", "Budget (USD)"]):
-    c = rmt.rows[0].cells[i]
-    set_cell_shading(c, TABLE_RED)
-    add_run(c.paragraphs[0], h, bold=True, size_pt=9.5, color=WHITE)
-for ri, r in enumerate(roadmap, start=1):
-    cells = rmt.rows[ri].cells
-    set_cell_shading(cells[0], LGRAY if ri % 2 == 0 else WHITE)
-    for c in cells:
-        set_cell_borders(c)
-        set_cell_shading(c, LGRAY if ri % 2 == 0 else WHITE)
-    add_run(cells[0].paragraphs[0], r[0], bold=True, size_pt=9.5, color=RED if "Short" in r[0] else (BLUE if "Medium" in r[0] else CHARCOAL))
-    add_run(cells[1].paragraphs[0], r[1], size_pt=9.5, color=CHARCOAL)
-    add_run(cells[2].paragraphs[0], r[2], size_pt=9, color=CHARCOAL)
-    add_run(cells[3].paragraphs[0], r[3], bold=True, size_pt=9.5, color=CHARCOAL)
-    add_run(cells[4].paragraphs[0], r[4], bold=True, size_pt=9.5, color=RED)
-    add_run(cells[5].paragraphs[0], r[5], size_pt=9, color=CHARCOAL)
-
-para(doc, "", space_after=12)
-
-# ─── Page 11: Risks + review trail ──────────────────────────────────────────
-doc.add_page_break()
-heading(doc, "9.  Risks and mitigations", level=1)
-risks = [
-    ("Political will on inter-agency data sharing.", "R5 requires ministerial signature. Without it, R3 stalls.",
-     "Pre-brief through CoST Zambia MSG; anchor request in ATI Act 2023 s.8 which already mandates proactive disclosure."),
-    ("IPPI-Zambia scope creep.", "Tempting to build a full monitoring platform rather than an integration layer.",
-     "Lock scope: OC4IDS publication + public API + download endpoint. Everything else Phase 2."),
-    ("NCC form redesign resistance.", "Structured fields change inspector workflows.",
-     "Co-design with NCC inspectors; pilot on 20 Grade-1 projects before full roll-out."),
-    ("ATI information officer capacity.", "Newly designated officers lack OC4IDS training.",
-     "Two-day CoST Zambia training workshop at designation; quarterly refresher in year 1."),
-    ("Legal reform timing on beneficial ownership (R7).", "Regulatory processes can run 12 to 18 months.",
-     "Start consultation in Q3 2026 so production is ready when platform launches in Q3 2027."),
-]
-rt = doc.add_table(rows=len(risks) + 1, cols=3)
-rt.autofit = False
-widths = [Cm(5.5), Cm(5.5), Cm(6.0)]
-for r in rt.rows:
-    for c, w in zip(r.cells, widths):
-        c.width = w
-for i, h in enumerate(["Risk", "Why it matters", "Mitigation"]):
-    c = rt.rows[0].cells[i]
-    set_cell_shading(c, TABLE_RED)
-    add_run(c.paragraphs[0], h, bold=True, size_pt=10, color=WHITE)
-for ri, r in enumerate(risks, start=1):
-    cells = rt.rows[ri].cells
-    for c in cells:
-        set_cell_borders(c)
-        set_cell_shading(c, LGRAY if ri % 2 == 0 else WHITE)
-    add_run(cells[0].paragraphs[0], r[0], bold=True, size_pt=9.5, color=CHARCOAL)
-    add_run(cells[1].paragraphs[0], r[1], size_pt=9.5, color=CHARCOAL)
-    add_run(cells[2].paragraphs[0], r[2], size_pt=9.5, color=CHARCOAL)
-
-para(doc, "", space_after=12)
-
-heading(doc, "10.  Review trail", level=1)
-trail_rows = [
-    ("Zambia Technical Team (NCC + ZPPA + CoST Zambia)", "Primary author", "2026-03-03"),
-    ("CoST International Secretariat, Open Data Specialist", "Field-level validation", "2026-04-23 (Overlay gate + full rubric applied)"),
-    ("CoST Zambia MSG", "Multi-stakeholder review", "Scheduled 2026-05-06"),
-    ("ZPPA Director of IT", "Technical feasibility sign-off on R1, R2, R3", "Pending"),
-    ("NCC Director of Construction Monitoring", "Technical feasibility sign-off on R3, R4, R8", "Pending"),
-]
-trt = doc.add_table(rows=len(trail_rows) + 1, cols=3)
-trt.autofit = False
-widths = [Cm(7.0), Cm(6.5), Cm(3.5)]
-for r in trt.rows:
-    for c, w in zip(r.cells, widths):
-        c.width = w
-for i, h in enumerate(["Reviewer", "Role", "Date / status"]):
-    c = trt.rows[0].cells[i]
-    set_cell_shading(c, TABLE_RED)
-    add_run(c.paragraphs[0], h, bold=True, size_pt=10, color=WHITE)
-for ri, r in enumerate(trail_rows, start=1):
-    cells = trt.rows[ri].cells
-    for c in cells:
-        set_cell_borders(c)
-        set_cell_shading(c, LGRAY if ri % 2 == 0 else WHITE)
-    for ci, v in enumerate(r):
-        add_run(cells[ci].paragraphs[0], v, size_pt=9.5, color=CHARCOAL,
-                bold=(ci == 2 and "Pending" in v))
-
-para(doc, "", space_after=14)
-
-# ─── Page 12: Conclusion + annex references ─────────────────────────────────
-heading(doc, "11.  Conclusion", level=1)
-para(doc, "Zambia's infrastructure data system is not as thin as it first appears. The ZPPA e-GP holds the procurement backbone. The NCC holds the implementation record. The ATI Act 2023 already requires publication of most of both. The binding constraint is integration and disclosure, not collection.",
-     size_pt=10.5, space_after=8)
-para(doc, "This analysis estimates that 35 OC4IDS fields can move to public disclosure in the current quarter. A further 20 can follow with light transformation. Another 73 unlock through IPPI-Zambia, the proposed integration layer. The remaining 25 require regulation or workflow change.",
-     size_pt=10.5, space_after=8)
-para(doc, "The immediate path forward has three moves: publish what is already publishable, sign the NCC-ZPPA data-sharing instrument, and scope IPPI-Zambia as an integration platform, not a monitoring system. Do those three and 128 of 153 OC4IDS fields become public within twelve months.",
-     size_pt=10.5, bold=True, color=CHARCOAL, space_after=14)
-
-heading(doc, "Annexes (references)", level=2)
-for a in [
-    "Annex A ,  Completed OC4IDS v0.9.5 Field-Level Mapping Template (attached: 2025_11_Zambia_OC4IDS_0.9.5_Field-Level_Mapping_Template.xlsx).",
-    "Annex B ,  Legal crosswalk: ATI Act 2023 / ZPPA Act 2020 / NCC Act 2020 mapped to each OC4IDS field.",
-    "Annex C ,  Full source-field provenance table: every mapped OC4IDS path × ZPPA e-GP source path.",
-    "Annex D ,  Country-specific fields retained as extensions.",
-    "Annex E ,  Sampled records used for field-population verification (n=50).",
-    "Annex F ,  NCC Inspection Form data dictionary (proposed structured redesign).",
-]:
-    p = doc.add_paragraph()
-    p.paragraph_format.space_after = Pt(3)
-    add_run(p, "·  ", color=MUTED, size_pt=10.5)
-    add_run(p, a, size_pt=10, color=CHARCOAL)
-
-para(doc, "", space_after=14)
-
-# Sign-off stripe
-para(doc, "CoST, the Infrastructure Transparency Initiative  ·  www.infrastructuretransparency.org  ·  Published under CC BY 4.0",
+# Legal footer
+para(doc, "CoST, the Infrastructure Transparency Initiative  •  www.infrastructuretransparency.org  •  Published under CC BY 4.0",
      size_pt=8, italic=True, color=LMUTED, align=WD_ALIGN_PARAGRAPH.CENTER, space_after=0)
 
 doc.save(str(OUT))

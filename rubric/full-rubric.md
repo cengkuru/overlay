@@ -23,6 +23,34 @@ Four reviewer questions the report must let a reader answer:
 
 ---
 
+## Audience discipline (standing)
+
+The rubric has two audiences: the CoST IS reviewer (internal) and the country member team (external). The vocabulary does not cross.
+
+**Member-facing outputs** (review letter, sample structural reference, covering email, any document a country team receives) must not contain:
+
+- the name *Overlay*, or any rubric-part label (*Part A / B / C*), section code (*C0 through C11*), or gate scorecard language.
+- pass/fail scores (*gate score 3 / 10*), procedural phrases (*reviewer gate check*, *full rubric*), or other tool-persona artefacts.
+- resubmission dates set unilaterally by the reviewer. Any deadline is agreed through MSG consultation and appears in the covering email, not in the body of the review document.
+
+Permitted credibility anchor: a single opening sentence of the form *"This review applies CoST IS's OC4IDS mapping review methodology."* No version numbers, no internal codes.
+
+Internal language translates into plain operational terms for members:
+
+| Internal | Member-facing |
+|---|---|
+| *Type-6 gap* | *This data already exists but is not yet publicly disclosed* |
+| *Source-field provenance* | *Which system field each OC4IDS field comes from* |
+| *Decision summary panel (C11)* | *What the country can publish now, and what needs to change* |
+| *Lifecycle framework* | *Where the data sits across the project lifecycle* |
+| *Overlay gate item 9 fails* | *No owner or timeline on any recommendation* |
+
+**Reviewer voice.** First-person *"CoST IS"*, not *"Overlay"* or *"we the tool"*. Comparative praise without reference data (e.g. *"the strongest we have seen"*) is either quantified or removed.
+
+**Member-facing date format.** Body prose uses natural English (*"23 April 2026"*). ISO (*"2026-04-23"*) is permitted only in metadata tables and source footers.
+
+---
+
 ## Dual-output rule (standing)
 
 Every Overlay review produces **two documents**, not one:
@@ -46,20 +74,30 @@ Hard-gate items (already enforced by Part B) are listed where relevant but are n
 
 The heaviest and most testable section. Without this section scoring at least **8 / 12**, the rest of the rubric is upholstery on a bad chassis.
 
-Required:
+**Denominator discipline.** The total OC4IDS template (approximately 1,480 slots across the four OC4IDS sheets) is a *universe*, not an obligation. OC4IDS contains required, recommended, optional, and sector-specific fields. A country doing everything right on every *relevant* field will still populate only 30–40% of the template universe because the rest legitimately does not apply. Leading a report with *"4.9% of 1,480 slots mapped"* sets a false deficit and misrepresents the publisher's standing. Use the denominators below instead.
 
-- Total OC4IDS slots assessed — stated explicitly.
-- Number and percentage of fields: mapped / partial / missing / NA (NA entries justified).
-- Per-sheet coverage across all four OC4IDS sheets: Projects, Contracting Processes, Linked Releases, Parties.
-- Zero-coverage sheets explicitly highlighted — silent zeros are a failure.
+**Required (the three denominators, in this order):**
+
+1. **Required-fields gate.** Count of OC4IDS fields marked `required` in the v0.9.5 schema that the publisher populated. Report as a pass/fail line: *all required fields populated: yes / no*. This is the legal floor. The set is small (roughly 8–12 fields across all four sheets) and any strong publisher clears it trivially.
+2. **Applicable-coverage rate.** Count of required + recommended fields applicable to the publisher's declared scope that are populated. The template's NA classifications produce this denominator directly: subtract NA-justified entries from the universe, then report the populated subset. This is the **scored denominator** — the one a reader sees first. It is what the OC4IDS Data Review Tool treats as the real floor.
+3. **Absolute publishable-field count.** The count of fields currently publishable, decomposed into the decision-panel categories: *ready to publish* / *small format fixes* / *needs system work* / *needs policy action*. Drives the decision summary in C11.
+
+**Supplementary (annex only):**
+
+- Total-template figure (fields populated out of the ~1,480 universe) — permitted as a benchmarking datapoint for cross-country comparison, reported once in the annex, never in the executive summary or headline blocks.
+
+**Also required in this section:**
+
+- Per-sheet coverage across all four OC4IDS sheets: Projects, Contracting Processes, Linked Releases, Parties — expressed against the applicable denominator per sheet, not the total slot count.
+- Zero-coverage sheets explicitly highlighted: silent zeros are a failure.
 - Count of source data elements forward-mapped to OC4IDS (from `(Source) 2. Data elements`).
 - Count of mapped fields validated with real example content (not placeholder).
 
 | Score | Meaning |
 |---:|---|
-| 10–12 | All six items present; numbers cross-verifiable from the attached template. |
-| 6–9 | 4–5 items present; minor gaps (e.g. forward-map count missing). |
-| 3–5 | 2–3 items present; zero-coverage sheets not named. |
+| 10–12 | All three denominators stated in order; per-sheet coverage; zero-sheets named; forward-map + validated counts present. |
+| 6–9 | Two of three denominators + per-sheet coverage. Total-universe still used in headline: cap at 7. |
+| 3–5 | One denominator only, or total-universe used as the lead figure. |
 | 0–2 | Coverage numbers absent or unverifiable against the template. |
 
 ### C1. Executive summary clarity — 6 pts
@@ -303,13 +341,19 @@ This is **review time**, not triage time. The 30-minute flow in the gate check i
 
 ## Review letter template
 
+**Document ordering (member-facing).** Verdict → What is working → Priority revisions → Next step. Lead with what the country got right. This softens the critical middle without compromising diagnostic rigour and avoids the review reading as a demolition job.
+
+**The covering email is the only member-facing communication that may contain a resubmission date.** The date is set after MSG consultation, not by the reviewer alone. Internal scoring (the 100-point rubric) is retained in reviewer records and never shown to members.
+
+**Internal record template (reviewer's file, not sent to the member):**
+
 ```
 Subject: OC4IDS Field-Level Mapping Report — Full Review: [country]
 
-Dear [author],
+Internal record: not distributed to the country team.
 
-I have completed the full reviewer rubric (CoST Full Rubric v0.9) against
-the [country] OC4IDS field-level mapping report submitted on [date].
+Reviewer: [name]
+Review date: [ISO]
 
 Overall score: [X] / 100.
 Band: [85–100 strong / 70–84 solid / 55–69 informative / <55 not review-ready].
