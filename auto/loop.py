@@ -1,65 +1,74 @@
-"""Auto-researcher loop for Overlay.
+"""Auto-researcher loop.
 
 Usage:
-    python3 loop.py                  # promote mode, up to 8 cycles
-    python3 loop.py --cycles 3
-    python3 loop.py --mode propose   # evaluate only; do not touch files
-    python3 loop.py --mode sandbox   # apply + rebuild + score; do not keep
-    python3 loop.py --mode promote   # full loop (default)
+    python3 auto/loop.py                       # promote, 8 cycles, default pkg
+    python3 auto/loop.py --mode propose        # eval + one candidate, no apply
+    python3 auto/loop.py --mode sandbox        # apply in trial workspace only
+    python3 auto/loop.py --package fixture-country
+    OVERLAY_PACKAGE=zambia-2026-04 python3 auto/loop.py
+
+Every trial runs in a disposable /tmp copy of the package. On accept,
+the manifest's whitelisted source files are atomically promoted and the
+package is rebuilt in place so derived artifacts reflect accepted source.
+On reject, the workspace is discarded; the working tree is unchanged.
 """
 from __future__ import annotations
 import argparse
+import os
 import pathlib
+import shutil
 import sys
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 
 HERE = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
 
 import evaluators as EV
 import mutator as MU
+from manifest import Manifest, load as load_manifest
+from promotion import accept as acceptance_gate
+from trial_workspace import trial, commit_patch
 from weakness_detector import top_weakness
-from sandbox import trial, commit_patch
-from promotion import accept
 from learning import log_cycle
 
 
-OVERLAY_ROOT = HERE.parent
-BUILD_DIR = OVERLAY_ROOT / "samples" / "zambia-2026-04" / "build"
+def evaluate(manifest: Manifest,
+             package_root: pathlib.Path = None) -> dict:
+    return EV.run_all(manifest, package_root)
 
 
-def evaluate() -> dict:
-    pkg = EV.package_for_zambia(OVERLAY_ROOT)
-    return EV.run_all(pkg)
-
-
-def format_score_table(results: dict) -> str:
-    lines = [f"| Eval | Score | Weight |", f"|---|---:|---:|"]
+def _format_score_table(results: dict) -> str:
+    lines = ["| Eval | Score | Weight |", "|---|---:|---:|"]
     for eid, r in results.items():
         lines.append(f"| {eid} | {r['score']:.3f} | {r['weight']} |")
     return "\n".join(lines)
 
 
-def write_dashboard(run_dir: pathlib.Path,
-                    initial: dict, final: dict,
-                    cycles: list):
+def _write_dashboard(run_dir: pathlib.Path, manifest: Manifest,
+                     initial: dict, final: dict,
+                     cycles: list) -> pathlib.Path:
     md = [
-        "# Overlay Auto-Researcher Run",
-        f"",
-        f"**When:** {datetime.utcnow().isoformat(timespec='seconds')}Z",
+        "# Overlay auto-researcher run",
+        "",
+        f"**Package:** {manifest.name}",
+        f"**When:** {datetime.now(timezone.utc).isoformat(timespec='seconds')}",
         f"**Cycles:** {len(cycles)}",
-        f"**Overall score:** {EV.overall_score(initial):.4f} → **{EV.overall_score(final):.4f}**",
+        f"**Overall score:** "
+        f"{EV.overall_score(initial):.4f} → **{EV.overall_score(final):.4f}**",
         f"**Target:** {EV.OVERALL_TARGET}",
         "",
         "## Initial scores",
         "",
-        format_score_table(initial),
+        _format_score_table(initial),
         "",
         "## Cycle log",
         "",
     ]
     if not cycles:
-        md.append("_No cycles attempted. Baseline already met target or no mutations available._")
+        md.append("_No cycles attempted — baseline already met target, "
+                  "or no rule-driven mutation was available._")
     for i, c in enumerate(cycles, start=1):
         acc = "ACCEPTED" if c["accepted"] else "REJECTED"
         md.append(f"### Cycle {i} — {acc}")
@@ -67,36 +76,73 @@ def write_dashboard(run_dir: pathlib.Path,
         md.append(f"- Targeted evaluator: `{c['targeted_eval']}`")
         md.append(f"- Mutation class: `{c['mutation_class']}`")
         md.append(f"- Patch: {c['patch_description']}")
+        md.append(f"- Touched: {', '.join(c.get('touched_files') or []) or '—'}")
         md.append(f"- Result: {c['reason']}")
         md.append("")
-    md.append("## Final scores")
-    md.append("")
-    md.append(format_score_table(final))
-    md.append("")
-    dashboard = run_dir / "dashboard.md"
-    dashboard.write_text("\n".join(md))
-    return dashboard
+    md += ["## Final scores", "", _format_score_table(final), ""]
+    out = run_dir / "dashboard.md"
+    out.write_text("\n".join(md))
+    return out
 
 
-def run(mode: str = "promote", max_cycles: int = 8):
+def _set_latest_symlink(runs_dir: pathlib.Path, run_dir: pathlib.Path) -> None:
+    """Replace runs/latest with a symlink to run_dir, tolerating any
+    prior state (missing, symlink, file, or directory)."""
+    latest = runs_dir / "latest"
+    if latest.is_symlink() or latest.is_file():
+        try:
+            latest.unlink()
+        except OSError:
+            pass
+    elif latest.is_dir():
+        shutil.rmtree(latest)
+    try:
+        os.symlink(run_dir.name, latest)
+    except OSError:
+        # Fallback if symlinks unsupported (e.g. weird FS): copy instead.
+        shutil.copytree(run_dir, latest)
+
+
+def run(mode: str = "promote",
+        max_cycles: int = 8,
+        package: str = None) -> int:
+    overlay_root = HERE.parent
+    manifest = load_manifest(overlay_root, package)
+
     runs_dir = HERE / "runs"
-    ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_dir = runs_dir / ts
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\n[auto] starting {mode} mode, max {max_cycles} cycles")
+    print(f"\n[auto] package: {manifest.name}")
+    print(f"[auto] mode: {mode}, max {max_cycles} cycles")
     print(f"[auto] run directory: {run_dir}")
 
-    initial = evaluate()
+    t0 = time.monotonic()
+    initial = evaluate(manifest)
+    baseline_eval_time = time.monotonic() - t0
+    print(f"[auto] baseline eval: {baseline_eval_time:.2f}s")
+
     current = initial
     current_overall = EV.overall_score(current)
+    baseline_blockers = EV.blocker_findings(current)
     print(f"[auto] baseline overall: {current_overall:.4f}")
+    if baseline_blockers:
+        print(f"[auto] baseline BLOCKERS: {len(baseline_blockers)}")
+        for eid, f in baseline_blockers[:5]:
+            print(f"   BLOCKER {eid}: {f.get('detail')}")
+        if len(baseline_blockers) > 5:
+            print(f"   ...and {len(baseline_blockers) - 5} more")
 
-    if current_overall >= EV.OVERALL_TARGET and all(
-        r["score"] >= EV.PASS_THRESHOLD for r in current.values()
-    ):
+    target_met = (
+        not baseline_blockers
+        and current_overall >= EV.OVERALL_TARGET
+        and all(r["score"] >= EV.PASS_THRESHOLD for r in current.values())
+    )
+    if target_met:
         print("[auto] already at target; no cycles needed")
-        dash = write_dashboard(run_dir, initial, current, [])
+        dash = _write_dashboard(run_dir, manifest, initial, current, [])
+        _set_latest_symlink(runs_dir, run_dir)
         print(f"[auto] dashboard: {dash}")
         return 0
 
@@ -105,14 +151,15 @@ def run(mode: str = "promote", max_cycles: int = 8):
 
     for cycle in range(1, max_cycles + 1):
         print(f"\n[cycle {cycle}] ranking weaknesses…")
-        tw = top_weakness(current, skip=skip_evals)
+        tw = top_weakness(manifest, current, skip=skip_evals)
         if tw is None:
-            print("[cycle] no remaining weaknesses above threshold. Done.")
+            print("[cycle] no remaining weakness with a mutation. Done.")
             break
         eval_id, result = tw
-        print(f"[cycle {cycle}] weakest: {eval_id} (score={result['score']:.3f})")
+        print(f"[cycle {cycle}] weakest: {eval_id} "
+              f"(score={result['score']:.3f})")
 
-        patch = MU.propose(OVERLAY_ROOT, eval_id, result)
+        patch = MU.propose(manifest, eval_id, result)
         if patch is None:
             print(f"[cycle {cycle}] no mutation available for {eval_id}; skip")
             skip_evals.add(eval_id)
@@ -125,10 +172,12 @@ def run(mode: str = "promote", max_cycles: int = 8):
                       patch_description=None)
             continue
 
-        print(f"[cycle {cycle}] mutation: {patch.mutation_class} — {patch.description}")
+        touched = patch.relative_files(manifest)
+        print(f"[cycle {cycle}] mutation: {patch.mutation_class} — "
+              f"{patch.description}")
+        print(f"[cycle {cycle}] touches: {', '.join(touched)}")
 
         if mode == "propose":
-            print(f"[cycle {cycle}] propose mode: no apply")
             log_cycle(runs_dir, cycle=cycle, mode=mode,
                       targeted_eval=eval_id,
                       mutation_class=patch.mutation_class,
@@ -136,18 +185,25 @@ def run(mode: str = "promote", max_cycles: int = 8):
                       baseline_overall=current_overall,
                       candidate_overall=current_overall,
                       baseline_results=current, candidate_results=None,
-                      patch_description=patch.description)
+                      patch_description=patch.description,
+                      patch=patch, touched_files=touched)
             cycles.append({
                 "targeted_eval": eval_id,
                 "mutation_class": patch.mutation_class,
                 "patch_description": patch.description,
+                "touched_files": touched,
                 "accepted": False,
                 "reason": "propose mode (dry run)",
             })
-            break  # propose mode shows one candidate and exits
+            break  # propose shows one candidate and exits
+
+        t_cycle = time.monotonic()
+        def _eval_at(root):
+            return evaluate(manifest, root)
 
         if mode == "sandbox":
-            ok, cand_results, err = trial(patch, BUILD_DIR, evaluate)
+            ok, cand_results, err, rr = trial(manifest, patch, _eval_at)
+            cycle_time = time.monotonic() - t_cycle
             if not ok:
                 print(f"[cycle {cycle}] sandbox failed: {err}")
                 log_cycle(runs_dir, cycle=cycle, mode=mode,
@@ -157,11 +213,16 @@ def run(mode: str = "promote", max_cycles: int = 8):
                           baseline_overall=current_overall,
                           candidate_overall=current_overall,
                           baseline_results=current, candidate_results=None,
-                          patch_description=patch.description)
+                          patch_description=patch.description,
+                          patch=patch, touched_files=touched,
+                          timings={"total": cycle_time,
+                                   "rebuild": rr.wall_time})
                 skip_evals.add(eval_id)
                 continue
             new_overall = EV.overall_score(cand_results)
-            print(f"[cycle {cycle}] sandbox overall: {current_overall:.4f} → {new_overall:.4f}")
+            print(f"[cycle {cycle}] sandbox overall: "
+                  f"{current_overall:.4f} → {new_overall:.4f}  "
+                  f"({cycle_time:.2f}s)")
             log_cycle(runs_dir, cycle=cycle, mode=mode,
                       targeted_eval=eval_id,
                       mutation_class=patch.mutation_class,
@@ -170,11 +231,15 @@ def run(mode: str = "promote", max_cycles: int = 8):
                       candidate_overall=new_overall,
                       baseline_results=current,
                       candidate_results=cand_results,
-                      patch_description=patch.description)
+                      patch_description=patch.description,
+                      patch=patch, touched_files=touched,
+                      timings={"total": cycle_time, "rebuild": rr.wall_time},
+                      rebuild_cost=manifest.rebuild_cost(manifest.build_scripts))
             cycles.append({
                 "targeted_eval": eval_id,
                 "mutation_class": patch.mutation_class,
                 "patch_description": patch.description,
+                "touched_files": touched,
                 "accepted": False,
                 "reason": f"sandbox: {current_overall:.4f} → {new_overall:.4f}",
             })
@@ -182,99 +247,88 @@ def run(mode: str = "promote", max_cycles: int = 8):
             continue
 
         # promote mode
-        ok, cand_results, err = commit_patch(patch, BUILD_DIR, evaluate)
+        def _gate(cand):
+            return acceptance_gate(current, cand, eval_id)
+        ok, cand_results, err, promote_result, rr = commit_patch(
+            manifest, patch, _eval_at, _gate,
+        )
+        cycle_time = time.monotonic() - t_cycle
         if not ok:
-            print(f"[cycle {cycle}] commit failed: {err}")
-            log_cycle(runs_dir, cycle=cycle, mode=mode,
-                      targeted_eval=eval_id,
-                      mutation_class=patch.mutation_class,
-                      accepted=False, reason=err,
-                      baseline_overall=current_overall,
-                      candidate_overall=current_overall,
-                      baseline_results=current, candidate_results=None,
-                      patch_description=patch.description)
-            skip_evals.add(eval_id)
-            continue
-
-        accepted, reason = accept(current, cand_results, eval_id)
-        if not accepted:
-            # Revert — rewrite original content
-            for path in patch.files:
-                # we already committed the file content to disk; revert by
-                # re-running rebuild with original contents restored via
-                # stash reversal
-                pass
-            print(f"[cycle {cycle}] rejected: {reason}")
-            # To revert, we need a hard reset. Best approach: re-apply the
-            # inverse. Simpler: keep baseline in memory and write back.
-            # The commit_patch helper wrote new content to disk so reset here.
-            # (We achieve revert by writing baseline content from the patch's
-            # stash that commit_patch already released.)
-            # In practice the mutator patches are idempotent and the next
-            # cycle will detect the same weakness. To avoid looping, mark
-            # the evaluator as skip.
+            # Working tree is byte-identical because we never promoted.
+            reason = err or "rejected before promote"
+            print(f"[cycle {cycle}] {reason} ({cycle_time:.2f}s)")
             log_cycle(runs_dir, cycle=cycle, mode=mode,
                       targeted_eval=eval_id,
                       mutation_class=patch.mutation_class,
                       accepted=False, reason=reason,
                       baseline_overall=current_overall,
-                      candidate_overall=EV.overall_score(cand_results),
+                      candidate_overall=(EV.overall_score(cand_results)
+                                         if cand_results else current_overall),
                       baseline_results=current,
                       candidate_results=cand_results,
-                      patch_description=patch.description)
-            # We did commit; restore originals by manually reverting the text
-            # saved by the mutator. The StashedFiles context already restored
-            # in the non-commit path; commit_patch DID commit. Revert by
-            # writing the stash we saved out of band (not available here).
-            # Solution: rebuild+accept path above always accepts if scores
-            # improve, so reject-after-commit is rare. For robustness we
-            # accept the committed result and continue — the next cycle
-            # will detect further weaknesses if any were introduced.
-            current = cand_results
-            current_overall = EV.overall_score(current)
+                      patch_description=patch.description,
+                      patch=patch, touched_files=touched,
+                      timings={"total": cycle_time, "rebuild": rr.wall_time},
+                      rebuild_cost=manifest.rebuild_cost(manifest.build_scripts),
+                      rollback_outcome="not_needed")
             skip_evals.add(eval_id)
             cycles.append({
                 "targeted_eval": eval_id,
                 "mutation_class": patch.mutation_class,
                 "patch_description": patch.description,
+                "touched_files": touched,
                 "accepted": False,
                 "reason": reason,
             })
             continue
 
-        print(f"[cycle {cycle}] accepted: {reason}")
+        # Accepted
+        drift = promote_result.baseline_drift if promote_result else []
+        reason = err  # when ok, commit_patch uses err to carry the accept reason
+        print(f"[cycle {cycle}] accepted: {reason} ({cycle_time:.2f}s)")
+        if drift:
+            print(f"[cycle {cycle}] baseline drift on unchanged charts: "
+                  f"{drift}")
         log_cycle(runs_dir, cycle=cycle, mode=mode,
                   targeted_eval=eval_id,
                   mutation_class=patch.mutation_class,
-                  accepted=True, reason=reason,
+                  accepted=True, reason=reason or "accepted",
                   baseline_overall=current_overall,
                   candidate_overall=EV.overall_score(cand_results),
                   baseline_results=current,
                   candidate_results=cand_results,
-                  patch_description=patch.description)
+                  patch_description=patch.description,
+                  patch=patch, touched_files=touched,
+                  timings={"total": cycle_time, "rebuild": rr.wall_time},
+                  rebuild_cost=manifest.rebuild_cost(manifest.build_scripts),
+                  baseline_drift=drift)
         current = cand_results
         current_overall = EV.overall_score(current)
         cycles.append({
             "targeted_eval": eval_id,
             "mutation_class": patch.mutation_class,
             "patch_description": patch.description,
+            "touched_files": touched,
             "accepted": True,
-            "reason": reason,
+            "reason": reason or "accepted",
         })
 
-        if current_overall >= EV.OVERALL_TARGET and all(
-            r["score"] >= EV.PASS_THRESHOLD for r in current.values()
-        ):
+        if (current_overall >= EV.OVERALL_TARGET
+                and all(r["score"] >= EV.PASS_THRESHOLD
+                        for r in current.values())):
             print(f"[auto] target reached after cycle {cycle}")
             break
 
-    dash = write_dashboard(run_dir, initial, current, cycles)
-    latest = runs_dir / "latest"
-    if latest.exists() or latest.is_symlink():
-        latest.unlink()
-    latest.symlink_to(run_dir.name)
+    dash = _write_dashboard(run_dir, manifest, initial, current, cycles)
+    _set_latest_symlink(runs_dir, run_dir)
     print(f"\n[auto] final overall: {current_overall:.4f}")
+    final_blockers = EV.blocker_findings(current)
+    if final_blockers:
+        print(f"[auto] {len(final_blockers)} BLOCKER(s) still open — "
+              f"package cannot ship")
     print(f"[auto] dashboard: {dash}")
+    if final_blockers:
+        return 2
     return 0 if current_overall >= EV.OVERALL_TARGET else 1
 
 
@@ -283,8 +337,11 @@ def main():
     ap.add_argument("--mode", choices=["propose", "sandbox", "promote"],
                     default="promote")
     ap.add_argument("--cycles", type=int, default=8)
+    ap.add_argument("--package", default=None,
+                    help="package name under samples/; defaults to "
+                         "OVERLAY_PACKAGE or the single package on disk")
     args = ap.parse_args()
-    sys.exit(run(mode=args.mode, max_cycles=args.cycles))
+    sys.exit(run(mode=args.mode, max_cycles=args.cycles, package=args.package))
 
 
 if __name__ == "__main__":

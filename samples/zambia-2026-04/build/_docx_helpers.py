@@ -122,6 +122,30 @@ def set_table_full_width(table, content_cm):
     tblW.set(qn('w:w'), str(int(content_cm * 567)))
     tblW.set(qn('w:type'), 'dxa')
     tbl_pr.append(tblW)
+    # Force table indent = 0 so the table starts exactly at the section margin.
+    for existing in tbl_pr.findall(qn('w:tblInd')):
+        tbl_pr.remove(existing)
+    tbl_ind = OxmlElement('w:tblInd')
+    tbl_ind.set(qn('w:w'), '0')
+    tbl_ind.set(qn('w:type'), 'dxa')
+    tbl_pr.append(tbl_ind)
+
+
+def set_table_zero_cell_margins(table):
+    """Strip table-level default cell margins (tblCellMar). Needed for
+    edge-to-edge content like the cover photo strip, where any inherited
+    0.19cm inner padding would make a CONTENT_W-wide image overflow.
+    """
+    tbl_pr = table._tbl.tblPr
+    for existing in tbl_pr.findall(qn('w:tblCellMar')):
+        tbl_pr.remove(existing)
+    cell_mar = OxmlElement('w:tblCellMar')
+    for side in ('top', 'start', 'bottom', 'end', 'left', 'right'):
+        m = OxmlElement(f'w:{side}')
+        m.set(qn('w:w'), '0')
+        m.set(qn('w:type'), 'dxa')
+        cell_mar.append(m)
+    tbl_pr.append(cell_mar)
 
 
 def apply_col_widths(table, widths_cm):

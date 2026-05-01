@@ -48,32 +48,37 @@ H.add_stripe_footer(doc.sections[0])
 
 
 # ─── Cover ──────────────────────────────────────────────────────────────────
-# Single composed PNG anchored inside a 1x1 table at EXACTLY CONTENT_W.
-strip_tbl = doc.add_table(rows=1, cols=1)
-H.set_table_full_width(strip_tbl, CONTENT_W)
-H.apply_col_widths(strip_tbl, [CONTENT_W])
-scell = strip_tbl.rows[0].cells[0]
+# Single 2-row table: photo strip (row 1) + red title block (row 2). Rows share
+# the table's width exactly — pixel-perfect edge alignment by construction.
+cover = doc.add_table(rows=2, cols=1)
+H.set_table_full_width(cover, CONTENT_W)
+H.set_table_zero_cell_margins(cover)
+H.apply_col_widths(cover, [CONTENT_W])
+
+# Row 1 — photo strip
+scell = cover.rows[0].cells[0]
 H.set_cell_margins(scell, top=0, bottom=0, left=0, right=0)
 H.set_cell_borders(scell)
 scp = scell.paragraphs[0]
 scp.paragraph_format.space_before = Pt(0)
 scp.paragraph_format.space_after = Pt(0)
+scp.paragraph_format.left_indent = Cm(0)
+scp.paragraph_format.right_indent = Cm(0)
+scp.paragraph_format.first_line_indent = Cm(0)
+scp.alignment = WD_ALIGN_PARAGRAPH.LEFT
 scp.add_run().add_picture(str(_COVER_STRIP), width=Cm(CONTENT_W))
 
-# Red title block
-red = doc.add_table(rows=1, cols=1)
-H.set_table_full_width(red, CONTENT_W)
-H.apply_col_widths(red, [CONTENT_W])
-rcell = red.rows[0].cells[0]
+# Row 2 — red title block
+rcell = cover.rows[1].cells[0]
 H.set_cell_shading(rcell, H.COVER_RED)
 H.set_cell_margins(rcell, top=520, bottom=520, left=480, right=480)
 H.set_cell_borders(rcell)
 rcp = rcell.paragraphs[0]
 rcp.paragraph_format.space_after = Pt(4)
-H.add_run(rcp, "OC4IDS FIELD-LEVEL MAPPING REPORT", bold=True, size_pt=12, color=H.WHITE)
+H.add_run(rcp, "SAMPLE STRUCTURE FOR A FIELD-LEVEL MAPPING REPORT", bold=True, size_pt=12, color=H.WHITE)
 rcp2 = rcell.add_paragraph()
 rcp2.paragraph_format.space_after = Pt(8)
-H.add_run(rcp2, "Findings, gaps, and the path to an Information Platform for Public Infrastructure in Zambia",
+H.add_run(rcp2, "What data Zambia has, where it is held, what is missing, and what to do next",
           bold=True, size_pt=19, color=H.WHITE)
 rcp3 = rcell.add_paragraph()
 rcp3.paragraph_format.space_after = Pt(0)
@@ -92,7 +97,16 @@ H.callout_box(
     doc, CONTENT_W,
     label="HOW TO USE THIS DOCUMENT",
     label_color=H.DMUTED,
-    body="This is a model report prepared by CoST IS as a drafting reference for the Zambia Technical Team. It is not a published report and should not be circulated as one. Every stakeholder name (minister, director, CEO) is shown in square brackets as a placeholder; confirm all assignments through the CoST Zambia MSG before the report is finalised. The structure, numbers, legal analysis, and recommendations are set at the level the report should aim for on publication. The Zambia team should adapt, correct, and extend this draft rather than use it unchanged.",
+    body="This is a sample structure for a field-level mapping report. It is not a published country report. CoST IS prepared it as a drafting reference for member-country teams, using Zambia data to make the pattern concrete. Another country adopting this model should keep the structure and replace the country-specific content (statutes, institutions, systems, stakeholder names) with its own. Country-specific names shown in square brackets are placeholders pending MSG consultation. Any legal interpretation or indicative figure in this sample requires country validation before use.",
+)
+H.para(doc, "", space_after=10)
+
+# What this report answers — the four practical questions
+H.callout_box(
+    doc, CONTENT_W,
+    label="WHAT THIS REPORT ANSWERS",
+    label_color=H.RED,
+    body="A field-level mapping report exists to help a country answer four practical questions: What data do we already have? Where is it held? What is missing? What do we do next? This report is organised around those four questions. Legal analysis, platform design, budget planning, and reform sequencing are deliberately not carried inside this mapping report so the core mapping story stays clear; countries that want that strategic layer should commission it separately.",
 )
 H.para(doc, "", space_after=10)
 
@@ -128,7 +142,7 @@ H.verdict_box(
     doc, CONTENT_W,
     label="VERDICT",
     headline="Zambia's public procurement system can publish 35 OC4IDS fields today. Another 20 will follow after small format fixes. Most of the information that is currently missing (contract variations, progress reports, payment records, quality assurance) is already collected by the National Council for Construction under the NCC Act 2020, section 53.",
-    tail="This is a disclosure gap, not a data gap. The Access to Information Act 2023 section 8 already mandates proactive publication of most of the missing fields. The proposed Information Platform for Public Infrastructure (IPPI-Zambia) is the integration layer this analysis calls for. The three immediate actions are set out in section 8.",
+    tail="On the evidence of this mapping, the problem is better read as a disclosure gap than as a data gap. The Access to Information Act 2023 section 8 appears to mandate proactive publication of most of the missing fields, subject to final legal review. The three immediate actions are set out in section 8; scoping the integration architecture that would carry them is a separate product.",
 )
 H.para(doc, "", space_after=12)
 
@@ -185,11 +199,11 @@ for g in [
     H.add_run(p, "-  ", bold=True, size_pt=10.5, color=H.RED)
     H.add_run(p, g, size_pt=10.5, color=H.CHARCOAL)
 
-H.heading(doc, "Headline recommendation", level=2)
-H.para(doc, "Build IPPI-Zambia as an integration layer, not a new collection system. The ZPPA e-GP holds the procurement record. The NCC holds the implementation, quality, and registration record. The ATI Act mandates publication of both. Connecting the two, under a short statutory instrument on inter-agency data sharing, closes 128 of the 153 gaps this report identifies within twelve months.",
+H.heading(doc, "Headline reading", level=2)
+H.para(doc, "Most of the missing implementation data already exists inside government: the ZPPA e-GP holds the procurement record, and the NCC holds the implementation record. The constraint, on the evidence reviewed, is disclosure and integration rather than collection. Three directional moves follow; their detailed scoping, owners, and sequencing sit outside this mapping report and should be developed separately through the MSG.",
        size_pt=10.5, color=H.CHARCOAL, space_after=10)
 
-H.para(doc, "Plain-language summary. Zambia already collects most of what OC4IDS requires. The data is held in two government systems that do not yet talk to each other. The job is to connect them, and to publish what the law already says must be public.",
+H.para(doc, "Plain-language summary. Zambia already collects most of what OC4IDS requires. The data is held in two government systems that do not yet talk to each other. The mapping report names what exists and what is missing; the reform work of connecting them is a separate product.",
        size_pt=10.5, italic=True, color=H.DMUTED, space_after=12)
 
 
@@ -198,7 +212,7 @@ doc.add_page_break()
 H.heading(doc, "1.  Scope, methodology, and systems reviewed", level=1)
 
 H.heading(doc, "1.1  Scope", level=2)
-H.para(doc, "This assessment evaluates Zambia's public infrastructure data systems against the Open Contracting for Infrastructure Data Standard (OC4IDS) v0.9.5, for the purpose of guiding the design and content of the proposed Information Platform for Public Infrastructure (IPPI-Zambia). It covers:",
+H.para(doc, "This assessment evaluates Zambia's public infrastructure data systems against the Open Contracting for Infrastructure Data Standard (OC4IDS) v0.9.5. It covers:",
        size_pt=10.5, space_after=6)
 for line in [
     "Procurement records in the ZPPA electronic Government Procurement (e-GP) system for financial years 2022/23 and 2023/24.",
@@ -214,7 +228,7 @@ H.para(doc, "Sectors covered: transport, energy, water and sanitation, and publi
        size_pt=10.5, space_after=10, space_before=4)
 
 H.heading(doc, "1.2  Sample", level=2)
-H.para(doc, "[Placeholder figure] All procurement records published via eprocure.zppa.org.zm for financial years 2022/23 and 2023/24 were analysed, with spot-checks against live records accessed on 14, 18, and 21 March 2026. Sampling method: universe review of published OC4IDS-mappable fields; purposive sample of 50 live procurement records for field-population checks. [The Zambia team should replace the [Placeholder figure] tag and confirm the actual sample size and sector mix before publication.]",
+H.para(doc, "All procurement records published via eprocure.zppa.org.zm for financial years 2022/23 and 2023/24 were analysed, with spot-checks against live records accessed on 14, 18, and 21 March 2026. Sampling method: universe review of published OC4IDS-mappable fields; purposive sample of 50 live procurement records for field-population checks.\n\n[Note to Zambia team: before publication, confirm the actual record count, sector mix, and value totals for this financial-year window. If the universe figure differs materially from what the live system shows on the submission date, restate here.]",
        size_pt=10.5, space_after=10)
 
 H.heading(doc, "1.3  Systems reviewed", level=2)
@@ -302,7 +316,7 @@ for ri, r in enumerate([
     ("Contracting Processes", "20 of 153", "13.1%", "Award and implementation subpaths silent."),
     ("Parties", "18 of 968", "1.9%", "Beneficial ownership and role data absent."),
     ("Linked Releases", "0 of 6", "0.0%", "No release-package structure in use."),
-    ("Total", "73 OC4IDS fields", "4.9%", "Applicable-scope coverage is higher (see below)."),
+    ("Total", "73 of 1,480 template slots", "4.9%", "Applicable-scope coverage is higher (see below)."),
 ], start=1):
     cells = st.rows[ri].cells
     H.set_row_height(st.rows[ri], 1.4)
@@ -320,7 +334,7 @@ H.callout_box(
     doc, CONTENT_W,
     label="ON THE DENOMINATORS",
     label_color=H.BLUE,
-    body="The OC4IDS template contains the OC4IDS universe field slots covering required, recommended, and sector-specific fields. No publisher is expected to fill every slot; OC4IDS is a universe, not an obligation. The denominators this report uses are (a) the required fields the publisher is accountable for (all populated), (b) the subset of required and recommended fields applicable to ZPPA's scope (approximately 55 of 150 populated), and (c) the count of fields publishable in practice (35 ready to publish today, 55 within 12 months). The the OC4IDS universe total is reported in Annex A for cross-country benchmarking only.",
+    body="The OC4IDS template contains approximately 1,480 field slots in v0.9.5 across required, recommended, and sector-specific fields; the total varies across OC4IDS versions. No publisher is expected to fill every slot; OC4IDS is a universe, not an obligation. The denominators this report uses are (a) the required fields the publisher is accountable for (all populated), (b) the subset of required and recommended fields applicable to ZPPA's scope (approximately 55 of 150 populated), and (c) the count of fields publishable in practice (35 ready to publish today, 55 within 12 months). The full OC4IDS universe total is reported in Annex A for cross-country benchmarking only.",
 )
 H.para(doc, "", space_after=12)
 
@@ -340,25 +354,25 @@ H.centered_image(doc, CHARTS / "02-phase-coverage.png", width_cm=CONTENT_W - 1,
                  space_before=4, space_after=10)
 
 phases = [
-    ("Identification", "28%",
+    ("Identification", "7 of ~25  (28%)",
      "Not collected / Unstructured (mixed)",
      "Project reference number, owner, sector, location, purpose, and description are captured. Sub-sector and project-brief fields are absent from e-GP and held only in line-ministry PDFs."),
-    ("Preparation", "12%",
+    ("Preparation", "3 of ~25  (12%)",
      "Outside reviewed system",
      "Project scope, budget, and approval date are present. Feasibility studies, ESIAs, funding sources, and procurement plans are held by line ministries, not by ZPPA or NCC."),
-    ("Procurement", "21%",
+    ("Procurement", "6 of ~28  (21%)",
      "Collected but not yet fully disclosed",
      "Procuring entity, procurement method, number of bidders, cost estimate, contract price, and contract dates are published. Tender evaluation detail, final selection justification, and contract documents sit inside e-GP but are not public."),
-    ("Implementation", "2%",
+    ("Implementation", "1 of ~45  (~2%)",
      "Collected but not yet disclosed (NCC-held)",
      "Contract variations, progress updates, payment certificates, quality assurance, and safety data are all captured by NCC under section 53 of the NCC Act. None reach the ZPPA e-GP or the public."),
-    ("Completion", "8%",
+    ("Completion", "2 of ~25  (8%)",
      "Collected but not yet disclosed",
      "Project status and projected scope are published. Actual completion cost, actual completion date, reasons for deviations, and audit and evaluation reports exist in NCC and audit bodies but are not integrated into any public system."),
-    ("Maintenance", "0%",
+    ("Maintenance", "0 of ~10  (0%)",
      "Not collected",
      "Maintenance schedules, cost logs, and inspection data are not captured in any reviewed system. A new capture workflow is required."),
-    ("Decommissioning", "0%",
+    ("Decommissioning", "0 of ~10  (0%)",
      "Not collected",
      "Decommissioning plans, environmental assessments, and costs are not captured. A new workflow and a regulatory requirement are both needed."),
 ]
@@ -371,6 +385,7 @@ H.styled_table_header(pt.rows[0],
                       ["Phase", "Coverage", "Dominant root cause",
                        "Representative evidence"])
 
+import re as _re
 for ri, (phase, pct_s, cause, ev) in enumerate(phases, start=1):
     cells = pt.rows[ri].cells
     H.set_row_height(pt.rows[ri], 1.6)
@@ -379,13 +394,16 @@ for ri, (phase, pct_s, cause, ev) in enumerate(phases, start=1):
         H.set_cell_shading(c, bg)
         H.set_cell_borders(c)
     H.add_run(cells[0].paragraphs[0], phase, bold=True, size_pt=10, color=H.CHARCOAL)
-    pct = float(pct_s.rstrip("%"))
+    # Extract percentage for colour selection, regardless of surrounding fraction.
+    m = _re.search(r"(\d+)%", pct_s)
+    pct = float(m.group(1)) if m else 0.0
     col = H.RED if pct < 10 else (H.YELLOW if pct < 20 else H.LOW_TEXT)
-    H.add_run(cells[1].paragraphs[0], pct_s, bold=True, size_pt=11, color=col)
+    H.add_run(cells[1].paragraphs[0], pct_s, bold=True, size_pt=10, color=col)
     H.add_run(cells[2].paragraphs[0], cause, size_pt=9.5, color=H.CHARCOAL)
     H.add_run(cells[3].paragraphs[0], ev, size_pt=9.5, color=H.CHARCOAL)
 
-H.para(doc, "", space_after=10)
+H.para(doc, "Fractions show fields mapped against applicable slots per phase (approximately 25 to 45 slots per phase in OC4IDS v0.9.5 for ZPPA-scope reporting). Denominators are approximate; the full mapping template is in Annex A. The phase table reports only fields that map to a single lifecycle phase. Parties sheet fields (18 mapped), Linked Releases, cross-cutting metadata, and codelist fields count toward the 73 total in section 2 but are not phase-specific, so the phase numerators do not sum to 73.",
+       size_pt=9, italic=True, color=H.DMUTED, space_after=10)
 
 H.callout_box(
     doc, CONTENT_W,
@@ -396,11 +414,11 @@ H.callout_box(
 H.para(doc, "", space_after=12)
 
 
-# ─── Page 6: Source-field provenance ───────────────────────────────────────
+# ─── Page 6: Where each field comes from ───────────────────────────────────
 doc.add_page_break()
-H.heading(doc, "4.  Source-field provenance", level=1)
+H.heading(doc, "4.  Where each field comes from", level=1)
 
-H.para(doc, "Each OC4IDS path Zambia can publish traces to a specific ZPPA e-GP source path. The table below shows a representative sample. The complete provenance list appears in Annex C.",
+H.para(doc, "Each OC4IDS path Zambia can publish traces to a specific ZPPA e-GP source path. The table below shows a representative sample. The complete source-paths list appears in Annex C.",
        size_pt=10.5, space_after=10)
 
 prov_rows = [
@@ -546,41 +564,9 @@ for ri, r in enumerate(typology, start=1):
                   color=(H.RED if ci == 0 and accent else H.CHARCOAL))
 
 
-# ─── Page 9: Legal analysis ────────────────────────────────────────────────
+# ─── Page 9: What can be published now ─────────────────────────────────────
 doc.add_page_break()
-H.heading(doc, "7.  Legal and institutional framework", level=1)
-
-H.para(doc, "Zambia's existing legal framework already authorises publication of most of the OC4IDS fields this report identifies as gaps. The work ahead is operational integration, not new legislation.",
-       size_pt=10.5, space_after=10)
-
-H.heading(doc, "7.1  The Access to Information Act 2023", level=2)
-H.para(doc, "Section 6 establishes the right to request public information. Section 8 goes further: it requires every 'information holder' (which includes ZPPA and NCC) to publish in the Gazette, in a daily newspaper, or on an electronic media platform a specified list of information. Section 8(1)(i) explicitly covers 'the signing of a contract and details regarding that contract, including the public works or goods acquired or rented; services contracted and any sketches, scopes of service or terms of reference; amount of money relating to the contract; name of the supplier, contractor or individual to whom the contract has been awarded; and the period within which the contract is to be completed.'",
-       size_pt=10.5, space_after=6)
-H.para(doc, "This provision authorises publication of 46 OC4IDS fields directly, including the core procurement and contract-stage fields. Section 9 requires the designation of an information officer in each institution to process requests and ensure publication. Section 17 requires preservation of records. Taken together, these provisions make proactive OC4IDS publication a statutory obligation, not a policy choice.",
-       size_pt=10.5, space_after=10)
-
-H.heading(doc, "7.2  The NCC Act No.10 of 2020", level=2)
-H.para(doc, "Section 5(k) and 5(l) require NCC to publish information on the construction industry and to advise the public on industry matters. Section 31 requires monitoring of all registered construction projects. Section 33 requires NCC to maintain a contractor register. Section 53 empowers NCC to monitor projects of prescribed value, to request information from any party, and to cooperate with other authorities, including through joint information-sharing mechanisms.",
-       size_pt=10.5, space_after=6)
-H.para(doc, "Section 53 is the legal hook for integrating NCC's implementation-stage data into an IPPI-Zambia feed. It authorises the data collection, the sharing, and the joint monitoring arrangement that an integration layer requires.",
-       size_pt=10.5, space_after=10)
-
-H.heading(doc, "7.3  The ZPPA Act No.3 of 2020", level=2)
-H.para(doc, "Sections 67 and 70 govern procurement-information transparency, subject to confidentiality provisions for commercially sensitive material. These sections currently provide the legal basis for the e-GP portal's existing disclosure. They are consistent with OC4IDS publication and require no amendment.",
-       size_pt=10.5, space_after=10)
-
-H.callout_box(
-    doc, CONTENT_W,
-    label="INSTITUTIONAL IMPLICATION",
-    label_color=H.BLUE,
-    body="The three statutes form a triangle: the ATI Act mandates publication, the ZPPA Act supplies procurement data, and the NCC Act supplies implementation data. IPPI-Zambia sits at the apex of the triangle, integrating ZPPA and NCC feeds into a single public disclosure surface. No new primary legislation is required to build it. A statutory instrument under the NCC Act section 53 would formalise the data-sharing arrangement between NCC and ZPPA.",
-)
-H.para(doc, "", space_after=12)
-
-
-# ─── Page 10: Decision summary ─────────────────────────────────────────────
-doc.add_page_break()
-H.heading(doc, "8.  Decision summary: what can be published, and by what route", level=1)
+H.heading(doc, "7.  What can be published now", level=1)
 
 H.para(doc, "Every publishable element is classified into one of four pathways. This is the steering view for government and MSG audiences.",
        size_pt=10.5, space_after=8)
@@ -599,7 +585,7 @@ buckets = [
      H.BLUE),
     ("Needs system work",
      "Fields NCC already collects under NCC Act section 53 that need an integration layer to reach the public.",
-     "73 fields. Contract variations, progress updates, quality and safety reports, disbursement certificates, final costs, audit references.",
+     "Approximately 70 NCC-held fields. Contract variations, progress updates, quality and safety reports, disbursement certificates, final costs, audit references.",
      H.YELLOW),
     ("Needs policy action",
      "Fields blocked by absence of a regulation, statutory instrument, or internal approval workflow.",
@@ -624,213 +610,46 @@ for ri, (label, what, example, col) in enumerate(buckets):
 H.para(doc, "", space_after=10)
 
 
-# ─── Page 11: Recommendations ──────────────────────────────────────────────
+# ─── Page 11: What to do next ──────────────────────────────────────────────
 doc.add_page_break()
-H.heading(doc, "9.  Recommendations", level=1)
+H.heading(doc, "8.  What to do next", level=1)
 
-H.para(doc, "Each recommendation carries a stable identifier (R1 through R8), a named proposed owner, a legal basis, a target quarter, and an effort level. All owner assignments are placeholders pending MSG consultation. The implementation roadmap in section 10 references these identifiers.",
+H.para(doc, "Three disciplined moves follow directly from the mapping. Each is within reach inside a year. These are directional only. Detailed action items, named owners, target quarters, and budget ranges are out of scope for a field-level mapping report and should be developed separately through MSG consultation once the mapping is approved.",
        size_pt=10.5, space_after=10)
 
-recs = [
-    ("R1", "Immediate no-regret fix",
-     "Publish the 35 'ready to publish' fields through an OC4IDS-compliant feed on eprocure.zppa.org.zm.",
-     "Uses existing source paths in the e-GP schema. No new collection. CC BY 4.0 licence.",
-     "[Proposed: ZPPA Director of IT]",
-     "ATI Act 2023 s.8; ZPPA Act 2020 s.67",
-     "Q3 2026", "Low"),
-    ("R2", "Immediate no-regret fix",
-     "Close the 20 'small format fixes' fields through codelist alignment, date-format reconciliation, and free-text standardisation.",
-     "Script-level changes to the existing e-GP data export. Measurable by re-running the OC4IDS Data Review Tool after changes land.",
-     "[Proposed: ZPPA Director of IT and CoST Zambia lead]",
-     "ATI Act 2023 s.8",
-     "Q4 2026", "Low"),
-    ("R3", "System / configuration change",
-     "Build IPPI-Zambia as the integration layer between the ZPPA e-GP system and NCC registers.",
-     "Connects e-GP procurement records with NCC inspection, contractor, and project data. Target: 73 currently-blocked fields.",
-     "[Proposed: NCC CEO and ZPPA Director General, CoST Zambia as delivery partner]",
-     "NCC Act 2020 s.5(k), 5(l), 53; ATI Act 2023 s.8",
-     "Q1 2027 prototype; Q3 2027 production",
-     "High"),
-    ("R4", "System / configuration change",
-     "Redesign NCC inspection forms to capture variation, progress, payment, and quality-assurance data in structured form.",
-     "Replaces PDF-only inspection reports with fielded metadata that can feed IPPI-Zambia and the public OC4IDS feed.",
-     "[Proposed: NCC Director of Construction Monitoring]",
-     "NCC Act 2020 s.53",
-     "Q4 2026 pilot on 20 Grade-1 projects; Q2 2027 full roll-out",
-     "Medium"),
-    ("R5", "Institutional / process change",
-     "Sign a statutory instrument authorising NCC to share OC4IDS-relevant data with ZPPA for publication.",
-     "Closes the 'collected but not disclosed' gap across the 73 fields identified in R3 without new primary legislation.",
-     "[Proposed: responsible minister]",
-     "NCC Act 2020 s.5 and s.53; ATI Act 2023 s.8",
-     "Q4 2026",
-     "Medium"),
-    ("R6", "Institutional / process change",
-     "Designate an information officer under ATI Act 2023 section 9 at each of ZPPA, NCC, and CoST Zambia.",
-     "Creates an accountable publication owner at each agency. Enables cross-agency escalation when disclosure stalls.",
-     "[Proposed: Permanent Secretary, Ministry of Finance (cross-agency coordination)]",
-     "ATI Act 2023 s.9",
-     "Q3 2026",
-     "Low"),
-    ("R7", "Policy / legal change",
-     "Introduce beneficial-ownership disclosure requirements via regulation under the ZPPA Act No.3/2020.",
-     "Closes the single largest category of restricted fields. Covers 18 or more OC4IDS Parties fields.",
-     "[Proposed: ZPPA Director General and Attorney General's Chambers]",
-     "ZPPA Act 2020 s.67; proposed new regulation",
-     "Q2 2027",
-     "High"),
-    ("R8", "Policy / legal change",
-     "Amend NCC regulations to require maintenance and decommissioning data capture on all Grade-1 projects.",
-     "Closes the 'not collected' gap on post-completion transparency (currently 0 of approximately 40 fields).",
-     "[Proposed: NCC CEO and Ministry of Infrastructure]",
-     "NCC Act 2020 s.53; proposed amendment",
-     "Q3 2027",
-     "Medium"),
+next_steps = [
+    ("1.  Publish what is already publishable.",
+     "The 35 fields in the ‘ready to publish’ bucket can go live through an OC4IDS feed on the existing e-GP portal. No new collection. No new law. The fastest observable progress this mapping can produce."),
+    ("2.  Close the format-fix backlog.",
+     "The 20 fields in the ‘small format fixes’ bucket need codelist alignment, date-format reconciliation, and free-text standardisation. Script-level work on the existing e-GP export."),
+    ("3.  Open the NCC-to-ZPPA disclosure pathway.",
+     "Most of the missing implementation data sits in NCC. A statutory instrument under NCC Act 2020 section 53 is the shortest path to integrate that data into the public feed. Scope needs country validation; legal drafting needs the Attorney-General’s Chambers."),
 ]
+for title, body in next_steps:
+    p = doc.add_paragraph()
+    p.paragraph_format.space_after = Pt(8)
+    H.add_run(p, title + " ", bold=True, size_pt=10.5, color=H.CHARCOAL)
+    H.add_run(p, body, size_pt=10.5, color=H.CHARCOAL)
 
-rt = doc.add_table(rows=len(recs) + 1, cols=7)
-H.set_table_full_width(rt, CONTENT_W)
-H.apply_col_widths(rt, [0.9, 2.2, 3.9, 2.6, 2.7, 1.6, 1.1])
-H.apply_default_padding(rt)
-H.styled_table_header(rt.rows[0],
-                      ["ID", "Type", "Action", "Proposed owner",
-                       "Legal basis", "Target", "Effort"],
-                      size_pt=9)
-
-layer_colors = {
-    "Immediate no-regret fix": H.LOW_TEXT,
-    "System / configuration change": H.BLUE,
-    "Institutional / process change": H.YELLOW,
-    "Policy / legal change": H.RED,
-}
-for ri, (rid, layer, title, detail, owner, legal, tl, effort) in enumerate(recs, start=1):
-    cells = rt.rows[ri].cells
-    H.set_row_height(rt.rows[ri], 2.0)
-    bg = H.LGRAY if ri % 2 == 0 else H.WHITE
-    for c in cells:
-        H.set_cell_shading(c, bg)
-        H.set_cell_borders(c)
-    H.add_run(cells[0].paragraphs[0], rid, bold=True, size_pt=9.5, color=H.CHARCOAL)
-    H.add_run(cells[1].paragraphs[0], layer, bold=True, size_pt=8.5, color=layer_colors[layer])
-    p_action = cells[2].paragraphs[0]
-    H.add_run(p_action, title, bold=True, size_pt=9.5, color=H.CHARCOAL)
-    p_action2 = cells[2].add_paragraph()
-    p_action2.paragraph_format.space_before = Pt(2)
-    H.add_run(p_action2, detail, size_pt=8.5, color=H.DMUTED, italic=True)
-    H.add_run(cells[3].paragraphs[0], owner, size_pt=8.5, color=H.CHARCOAL, italic=True)
-    H.add_run(cells[4].paragraphs[0], legal, size_pt=8.5, color=H.CHARCOAL)
-    H.add_run(cells[5].paragraphs[0], tl, bold=True, size_pt=9, color=H.RED)
-    H.add_run(cells[6].paragraphs[0], effort, size_pt=8.5, color=H.CHARCOAL)
+H.para(doc, "", space_after=6)
+H.callout_box(
+    doc, CONTENT_W,
+    label="FURTHER DETAIL",
+    label_color=H.DMUTED,
+    body="This report deliberately stops at three directional moves. A detailed reform programme (with legal crosswalk, named recommendations, proposed owners, target quarters, budget ranges, risks, and an implementation roadmap) is a separate product. Countries that want that strategic layer should commission it after MSG approval of this mapping report, not instead of it.",
+)
 
 
-# ─── Page 12: Implementation roadmap ───────────────────────────────────────
+# ─── Page 12: Review trail + conclusion ───────────────────────────────────
 doc.add_page_break()
-H.heading(doc, "10.  Implementation roadmap", level=1)
-
-H.para(doc, "The roadmap translates the eight recommendations into a dated sequence. Every roadmap row references a recommendation identifier. Budgets are order-of-magnitude and should be refined through procurement planning.",
-       size_pt=10.5, space_after=10)
-
-roadmap = [
-    ("Short-term (0 to 3 months)",
-     "Publish OC4IDS feed with the 35 'ready to publish' fields.",
-     "[ZPPA Director of IT]", "R1, R2", "Q3 2026", "USD 15,000 to 25,000"),
-    ("Short-term (0 to 3 months)",
-     "Designate ATI information officers at ZPPA, NCC, and CoST Zambia.",
-     "[Permanent Secretary, Ministry of Finance]", "R6", "Q3 2026", "No new budget required"),
-    ("Medium-term (3 to 12 months)",
-     "Redesign NCC inspection forms with structured progress and variation fields; pilot on 20 Grade-1 projects.",
-     "[NCC Director of Construction Monitoring]", "R4", "Q4 2026", "USD 40,000 to 60,000"),
-    ("Medium-term (3 to 12 months)",
-     "Sign statutory instrument on NCC and ZPPA data sharing.",
-     "[Minister of Infrastructure]", "R5", "Q4 2026", "No new budget required"),
-    ("Medium-term (3 to 12 months)",
-     "Build IPPI-Zambia prototype (OC4IDS feed from integrated e-GP and NCC data).",
-     "[NCC CEO and ZPPA Director General, CoST Zambia delivery]", "R3", "Q1 2027", "USD 150,000 to 220,000"),
-    ("Long-term (12 months plus)",
-     "IPPI-Zambia production release.",
-     "[NCC CEO and ZPPA Director General]", "R3, R4, R5", "Q3 2027", "USD 80,000 to 120,000"),
-    ("Long-term (12 months plus)",
-     "Introduce beneficial-ownership regulation under the ZPPA Act.",
-     "[ZPPA Director General and Attorney General]", "R7", "Q2 2027", "No new budget required"),
-    ("Long-term (12 months plus)",
-     "Amend NCC regulations on maintenance and decommissioning capture.",
-     "[NCC CEO and Ministry of Infrastructure]", "R8", "Q3 2027", "USD 20,000 to 40,000"),
-]
-
-rm = doc.add_table(rows=len(roadmap) + 1, cols=6)
-H.set_table_full_width(rm, CONTENT_W)
-H.apply_col_widths(rm, [3.0, 4.8, 3.0, 1.3, 1.6, CONTENT_W - 13.7])
-H.apply_default_padding(rm)
-H.styled_table_header(rm.rows[0],
-                      ["Priority", "Action", "Proposed owner",
-                       "Ref", "Target", "Budget (USD)"],
-                      size_pt=9)
-
-for ri, r in enumerate(roadmap, start=1):
-    cells = rm.rows[ri].cells
-    H.set_row_height(rm.rows[ri], 1.5)
-    bg = H.LGRAY if ri % 2 == 0 else H.WHITE
-    for c in cells:
-        H.set_cell_shading(c, bg)
-        H.set_cell_borders(c)
-    colour = H.RED if "Short" in r[0] else (H.BLUE if "Medium" in r[0] else H.CHARCOAL)
-    H.add_run(cells[0].paragraphs[0], r[0], bold=True, size_pt=9, color=colour)
-    H.add_run(cells[1].paragraphs[0], r[1], size_pt=9, color=H.CHARCOAL)
-    H.add_run(cells[2].paragraphs[0], r[2], size_pt=8.5, color=H.CHARCOAL, italic=True)
-    H.add_run(cells[3].paragraphs[0], r[3], bold=True, size_pt=9, color=H.CHARCOAL)
-    H.add_run(cells[4].paragraphs[0], r[4], bold=True, size_pt=9, color=H.RED)
-    H.add_run(cells[5].paragraphs[0], r[5], size_pt=8.5, color=H.CHARCOAL)
-
-
-# ─── Page 13: Risks + review trail ─────────────────────────────────────────
-doc.add_page_break()
-H.heading(doc, "11.  Risks and mitigations", level=1)
-
-risks = [
-    ("Political will on inter-agency data sharing.",
-     "R5 requires ministerial signature. Without it, R3 stalls and the integration benefit is lost.",
-     "Pre-brief the MSG through CoST Zambia; anchor the request in ATI Act 2023 section 8, which already mandates proactive disclosure. Frame the request as operationalising existing law, not creating new obligations."),
-    ("IPPI-Zambia scope creep.",
-     "The integration layer is tempting to scope as a full monitoring platform. That scope defeats the 12-month timeline.",
-     "Lock scope to OC4IDS publication plus a public API plus a download endpoint. Everything else is Phase 2. Document the locked scope in the Phase 1 ToR."),
-    ("NCC form redesign resistance.",
-     "Structured fields change inspector workflows. Field staff may resist the change without training and clear benefits.",
-     "Co-design with NCC inspectors in the pilot phase. Publish the pilot results before full roll-out so benefits are visible."),
-    ("ATI information officer capacity.",
-     "Newly designated officers under R6 lack OC4IDS training and may default to reactive disclosure only.",
-     "Run a two-day CoST Zambia training workshop at designation. Quarterly refresher in year one. Publish an information officer handbook."),
-    ("Regulatory timing on beneficial ownership (R7).",
-     "Regulatory drafting and consultation can run 12 to 18 months. A late regulation means the Parties sheet stays at 1.9% coverage.",
-     "Start consultation in Q3 2026 so the regulation is ready when IPPI-Zambia production launches in Q3 2027."),
-]
-risk_t = doc.add_table(rows=len(risks) + 1, cols=3)
-H.set_table_full_width(risk_t, CONTENT_W)
-col_w = (CONTENT_W) / 3
-H.apply_col_widths(risk_t, [col_w, col_w, col_w])
-H.apply_default_padding(risk_t)
-H.styled_table_header(risk_t.rows[0], ["Risk", "Why it matters", "Mitigation"])
-
-for ri, r in enumerate(risks, start=1):
-    cells = risk_t.rows[ri].cells
-    H.set_row_height(risk_t.rows[ri], 1.8)
-    bg = H.LGRAY if ri % 2 == 0 else H.WHITE
-    for c in cells:
-        H.set_cell_shading(c, bg)
-        H.set_cell_borders(c)
-    H.add_run(cells[0].paragraphs[0], r[0], bold=True, size_pt=9.5, color=H.CHARCOAL)
-    H.add_run(cells[1].paragraphs[0], r[1], size_pt=9.5, color=H.CHARCOAL)
-    H.add_run(cells[2].paragraphs[0], r[2], size_pt=9.5, color=H.CHARCOAL)
-
-H.para(doc, "", space_after=14)
-
-H.heading(doc, "12.  Review trail", level=1)
+H.heading(doc, "9.  Review trail", level=1)
 trail = [
     ("[Zambia Technical Team]", "Primary author (NCC and ZPPA, coordinated by CoST Zambia)",
      "[Date of lead author sign-off]"),
     ("CoST International Secretariat", "Field-level review against OC4IDS mapping methodology", "23 April 2026"),
     ("[CoST Zambia MSG]", "Multi-stakeholder review", "[scheduled]"),
-    ("[ZPPA Director of IT]", "Technical feasibility sign-off on R1, R2, R3", "[pending]"),
-    ("[NCC Director of Construction Monitoring]", "Technical feasibility sign-off on R3, R4, R8", "[pending]"),
+    ("[ZPPA Director of IT]", "Technical feasibility sign-off on the e-GP data export and the OC4IDS feed", "[pending]"),
+    ("[NCC Director of Construction Monitoring]", "Technical feasibility sign-off on NCC inspection-data integration and the source-paths table", "[pending]"),
 ]
 trail_t = doc.add_table(rows=len(trail) + 1, cols=3)
 H.set_table_full_width(trail_t, CONTENT_W)
@@ -851,25 +670,29 @@ for ri, r in enumerate(trail, start=1):
                   italic=(v.startswith("[") and v.endswith("]")))
 
 
-# ─── Page 14: Conclusion + annexes ─────────────────────────────────────────
+# ─── Page 13: Conclusion + annexes ─────────────────────────────────────────
 doc.add_page_break()
-H.heading(doc, "13.  Conclusion", level=1)
+H.heading(doc, "10.  Conclusion", level=1)
 
-H.para(doc, "Zambia's public infrastructure data system is not as thin as it first appears. The ZPPA e-GP holds the procurement backbone. The NCC holds the implementation record. The Access to Information Act 2023 already mandates publication of most of both. The binding constraint is integration and disclosure, not collection.",
+H.para(doc, "Based on this mapping, Zambia's public infrastructure data system is not as thin as it first appears. The ZPPA e-GP holds the procurement backbone. The NCC holds the implementation record. The Access to Information Act 2023 appears to mandate publication of most of both. The binding constraint, on the evidence reviewed, is integration and disclosure rather than collection.",
        size_pt=10.5, space_after=8)
-H.para(doc, "This analysis identifies 35 OC4IDS fields that can move to public disclosure in the current quarter. Another 20 will follow after small format fixes. A further 73 unlock through IPPI-Zambia, the proposed integration layer. The remaining 25 require regulation or workflow change.",
+H.para(doc, "This analysis identifies 35 OC4IDS fields that can move to public disclosure in the current quarter. Another 20 would follow after small format fixes. A further group of NCC-held implementation fields (approximately 70) would become publishable through an integration layer. The remainder require regulation or workflow change.",
        size_pt=10.5, space_after=8)
-H.para(doc, "The immediate path forward has three moves: publish what is already publishable, sign the NCC to ZPPA data-sharing instrument, and scope IPPI-Zambia as an integration platform, not a monitoring system. Doing those three turns 128 of the 153 identified gaps into public OC4IDS fields within twelve months.",
+H.para(doc, "The immediate path forward has three moves: publish what is already publishable, draft and sign an NCC and ZPPA data-sharing instrument, and scope the integration work as a publication pathway rather than a monitoring system. Scoping, sequencing, and institutional design sit outside this mapping report and should be picked up in a separate planning conversation.",
        size_pt=10.5, bold=True, color=H.CHARCOAL, space_after=14)
 
 H.heading(doc, "Annexes", level=2)
+
+# Scope note sits above the bullet list, not inside it, so it is clearly not
+# itself an annex.
+H.para(doc, "Note on scope: legal crosswalk, detailed recommendations, implementation roadmap, risks register, and NCC inspection form redesign are deliberately out of scope for a field-level mapping report. Countries that want that layer should commission it as a separate reform-planning product.",
+       size_pt=9.5, italic=True, color=H.DMUTED, space_after=8)
+
 for a in [
     "Annex A.  Completed OC4IDS v0.9.5 field-level mapping template (attached: 2025_11_Zambia_OC4IDS_0.9.5_Field-Level_Mapping_Template.xlsx).",
-    "Annex B.  Legal crosswalk: ATI Act 2023 / ZPPA Act 2020 / NCC Act 2020 mapped to each OC4IDS field.",
-    "Annex C.  Full source-field provenance table: every mapped OC4IDS path crossed with its ZPPA e-GP source path.",
-    "Annex D.  Country-specific fields preserved as extensions.",
-    "Annex E.  Sampled procurement records used for field-population verification (n = 50).",
-    "Annex F.  NCC Inspection Form data dictionary (proposed structured redesign for R4).",
+    "Annex B.  Full source-paths table: every mapped OC4IDS path crossed with its ZPPA e-GP source path.",
+    "Annex C.  Country-specific fields preserved as extensions.",
+    "Annex D.  Sampled procurement records used for field-population verification (n = 50).",
 ]:
     p = doc.add_paragraph()
     p.paragraph_format.space_after = Pt(4)
@@ -877,6 +700,45 @@ for a in [
     H.add_run(p, a, size_pt=10, color=H.CHARCOAL)
 
 H.para(doc, "", space_after=14)
+
+
+# Placeholder checklist is NOT part of the published sample. It is scaffolding
+# that belongs in an internal pre-publication tool, not in the model document
+# a country team will reference. Written as a side-car Markdown file next to
+# the DOCX; keep it, delete it, or email it to the MSG as a checklist.
+_placeholder_items = [
+    ("Cover block", "[Lead author: to be confirmed by MSG]",
+     "Publisher / Prepared-by block on the cover page."),
+    ("Cover block", "[portal URL to be set at IPPI-Zambia launch]",
+     "Publication-licence row on the cover page."),
+    ("Cover block", "[to be set by Zambia team]",
+     "Version line on the cover page (date)."),
+    ("Section 1.2", "[Note to Zambia team] on sampling",
+     "Opening paragraph note on record count, sector mix, value totals. Replace with actual universe figures or delete if universe review holds."),
+    ("Section 9 (Review trail)", "[Zambia Technical Team] and [Date of lead author sign-off]",
+     "Replace with the actual lead author name and sign-off date."),
+    ("Section 9 (Review trail)", "[CoST Zambia MSG], status [scheduled]",
+     "Set the MSG review date once scheduled."),
+    ("Section 9 (Review trail)", "[ZPPA Director of IT], status [pending]",
+     "Replace with the actual officer and confirm sign-off."),
+    ("Section 9 (Review trail)", "[NCC Director of Construction Monitoring], status [pending]",
+     "Replace with the actual officer and confirm sign-off."),
+]
+
+_checklist_path = OUT.parent / "02-sample-final-report_placeholder-checklist.md"
+_lines = [
+    "# Pre-publication placeholder checklist",
+    "",
+    "Internal tool. Not part of the published sample.",
+    "",
+    "Every bracketed placeholder in 02-sample-final-report.docx. Tick through each row before the MSG signs the report for publication. A single un-replaced placeholder in a public report damages its standing; a cheap tick-through on draft day is cheaper than republishing a corrected version after distribution.",
+    "",
+    "| Location | Placeholder | Action required |",
+    "|----------|-------------|-----------------|",
+]
+for loc, tag, action in _placeholder_items:
+    _lines.append(f"| {loc} | `{tag}` | {action} |")
+_checklist_path.write_text("\n".join(_lines) + "\n", encoding="utf-8")
 
 H.para(doc, "CoST, the Infrastructure Transparency Initiative  •  www.infrastructuretransparency.org  •  Published under CC BY 4.0",
        size_pt=8, italic=True, color=H.LMUTED,

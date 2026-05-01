@@ -1,0 +1,68 @@
+name: fixture-country
+country: Fixtureland
+package_date: 2026-04
+
+build_scripts:
+  - build_fixture_doc.py
+
+outputs:
+  fixture_report: fixture-report.docx
+
+read_only_outputs: []
+
+charts_dir: charts
+baseline_dir: _baseline
+
+rebuild_cost_sec:
+  build_fixture_doc.py: 0.5
+
+mutation_whitelist:
+  - build_fixture_doc.py
+
+page_targets:
+  fixture_report: [1, 5]
+
+invariants:
+  counts:
+    template_total: 100
+    required_populated: 25
+    overall_percent: 25.0
+  phases:
+    Alpha: 50
+    Beta:  25
+
+recommendations:
+  - { id: R1, priority: High }
+  - { id: R2, priority: Medium }
+
+context_policy:
+  template_total_literal: "100"
+  forbidden_headings:
+    - "Headline"
+  permitted_headings:
+    - "Annex"
+  permitted_callout_labels:
+    - "NOTE"
+
+filename_migrations: []
+
+forbidden_internal_vocab:
+  Overlay: this review
+
+section_code_pattern: ''
+section_code_replacements: {}
+
+ai_tells:
+  delve: examine
+  leverage: use
+
+# Minimal schema for the fixture package — proves the structural
+# evaluators are country-agnostic. A real package would declare many
+# more required sections and tables.
+schema:
+  fixture_report:
+    required_image_count: 0
+    required_headings:
+      - { level: 1, must_contain: ["Findings"] }
+      - { level: 1, must_contain: ["Phases"] }
+    required_tables: []

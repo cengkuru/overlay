@@ -1,0 +1,343 @@
+name: zambia-2026-04
+country: Zambia
+package_date: 2026-04
+
+# Files the loop rebuilds. Order matters: charts first, then docs that
+# embed them. build_reform_companion.py does not exist on disk today;
+# 03-reform-companion.docx is authored outside the build pipeline, so
+# it is listed as a read-only artifact, not a rebuild target.
+build_scripts:
+  - build_charts.py
+  - build_review_and_reference.py
+  - build_final_report.py
+
+# Every DOCX an evaluator reads. Labels are free-form; evaluators look
+# them up by label.
+outputs:
+  review_and_reference: 01-review-and-reference.docx
+  sample_final_report:  02-sample-final-report.docx
+  reform_companion:     03-reform-companion.docx
+
+# Outputs produced by something other than build_scripts (evaluated
+# read-only; never rebuilt by the loop).
+read_only_outputs:
+  - reform_companion
+
+charts_dir: charts
+baseline_dir: _baseline          # golden chart oracle for rollback check
+
+# Per-script rebuild cost estimate (seconds). Used by the ranker to
+# pick patches with the smallest blast radius. Measure and update.
+rebuild_cost_sec:
+  build_charts.py: 3.0
+  build_review_and_reference.py: 2.0
+  build_final_report.py: 3.0
+
+# Only files listed here may be rewritten by a mutation and promoted
+# back into the working tree. Anything else a patch tries to touch is
+# a blocker.
+mutation_whitelist:
+  - build_charts.py
+  - build_review_and_reference.py
+  - build_final_report.py
+
+# Page-length targets per output. Evaluators read these.
+page_targets:
+  review_and_reference: [10, 20]
+  sample_final_report:  [10, 25]
+  reform_companion:     [8,  20]
+
+# Source-of-truth invariants. Evaluators reconcile the rendered doc text
+# against these. Every number here has a home in build script literals
+# today; they move into data so the engine stays country-agnostic.
+invariants:
+  # Denominator triangle the report relies on.
+  counts:
+    template_total: 1480                 # OC4IDS universe (v0.9.5)
+    ready_today: 35
+    within_12_months: 55
+    applicable_scope_total: 150
+    applicable_scope_populated: 55
+    required_populated: 73
+    overall_percent: 4.9                 # 73 / 1480
+
+  # Phase coverage chart (build_charts.py:61). Phase-to-percent.
+  phases:
+    Identification: 28
+    Preparation:    12
+    Procurement:    21
+    Implementation: 2
+    Completion:     8
+    Maintenance:    0
+    Decommissioning: 0
+
+  # Decision bucket chart (build_charts.py:83).
+  decision_buckets:
+    "Ready to publish":    35
+    "Small format fixes":  20
+    "Needs system work":   73
+    "Needs policy action": 25
+
+# Every recommendation cited in the review must have a row here. The
+# evaluator checks both directions: all of these cited at least once,
+# and no R-ref appears that is not in this list.
+recommendations:
+  - { id: R1,  priority: Critical }
+  - { id: R2,  priority: Critical }
+  - { id: R3,  priority: High }
+  - { id: R4,  priority: Critical }
+  - { id: R5,  priority: High }
+  - { id: R6,  priority: High }
+  - { id: R7,  priority: High }
+  - { id: R8,  priority: Medium }
+  - { id: R9,  priority: Medium }
+  - { id: R10, priority: Low }
+
+# E06: where "1,480" is allowed and where it is not. Heading text is
+# matched case-insensitively against the enclosing heading ancestor.
+context_policy:
+  # E06: "1,480" is permitted when a hit sits under one of
+  # `permitted_headings` OR inside a paragraph whose text starts with
+  # one of `permitted_callout_labels` (callout boxes labelled inline).
+  # It is forbidden under `forbidden_headings` regardless.
+  template_total_literal: "1,480"
+  forbidden_headings:
+    - "Executive summary"
+    - "Headline"
+    - "Summary for decision-makers"
+    - "What changed"
+    - "Headline numbers"
+    - "Headline reading"
+  permitted_headings:
+    - "Annex"
+    - "Benchmark"
+    - "Methodology"
+    - "Note on denominators"
+    - "Field-level coverage"
+  permitted_callout_labels:
+    - "ON THE DENOMINATORS"
+    - "DENOMINATOR"
+    - "METHODOLOGY"
+    - "ANNEX"
+
+# Stale filenames the engine should never let through. Format:
+# [bad_literal, replacement]. The mutator reads this.
+filename_migrations:
+  - ["03-sample-final-report.docx", "02-sample-final-report.docx"]
+
+# Vocabulary gates. These live in the manifest so other countries can
+# override without touching engine code.
+forbidden_internal_vocab:
+  Overlay:                "this review"
+  Gate score:             "review score (internal)"
+  gate item:              "review item (internal)"
+  Reviewer Gate Check:    "review methodology"
+  Full Rubric:            "review methodology"
+  Part A:                 "the author checklist"
+  Part B:                 "the triage step"
+  Part C:                 "the full review"
+
+# Section codes like C0..C12 are flagged as internal vocabulary by
+# pattern and substituted by name.
+section_code_pattern: 'C\d{1,2}'
+section_code_replacements:
+  C0:  "the quantitative backbone"
+  C5:  "the lifecycle findings section"
+  C6:  "the gap typology section"
+  C8:  "the legal alignment section"
+  C9:  "the non-template fields section"
+  C10: "the recommendations section"
+  C11: "the roadmap section"
+
+ai_tells:
+  delve:           examine
+  leverage:        use
+  utilize:         use
+  utilizes:        uses
+  utilized:        used
+  seamless:        smooth
+  seamlessly:      smoothly
+  cutting-edge:    new
+  groundbreaking:  significant
+  paradigm shift:  change
+  synergy:         cooperation
+  holistic:        complete
+  transformative:  significant
+  fostering:       building
+
+# ─── Structural schema ────────────────────────────────────────────
+# Quality bar derived from the current Zambia outputs. Every country
+# package must meet this shape. Values shipped here are portable:
+# heading matchers describe anchors that every review must have,
+# regardless of country; table matchers describe the column signatures
+# every recurring table must carry. Country-specific content (R-refs
+# citations, Zambia-only copy) is not encoded here.
+#
+# `required_headings[*]` entries match when:
+#   - `level` is present at the same depth
+#   - AND the heading text contains every string in `must_contain`
+#     (case-insensitive).
+#
+# `required_tables[*]` entries match when there exists a table in the
+# DOCX where:
+#   - rows is within `rows_min..rows_max` inclusive (if given)
+#   - AND cols is within `cols_min..cols_max` (if given)
+#   - AND every header string in `header_contains` appears as a
+#     case-insensitive substring of at least one cell in the first
+#     row OR — for 1-cell callouts — the first cell text.
+#
+# `required_image_count` is a minimum; more is fine.
+# `page_range_per_output` is an inclusive range; E08 already handles
+# soft score but E16 uses this too if rendered page counts are
+# available (deferred until soffice lands).
+
+schema:
+  review_and_reference:
+    required_image_count: 1
+    required_headings:
+      - { level: 2, must_contain: ["Assessment"] }
+      - { level: 1, must_contain: ["What is strong"] }
+      - { level: 1, must_contain: ["Priority revisions"] }
+      - { level: 2, must_contain: ["CRITICAL"] }
+      - { level: 2, must_contain: ["HIGH"] }
+      - { level: 2, must_contain: ["MEDIUM"] }
+      - { level: 2, must_contain: ["LOW"] }
+      - { level: 1, must_contain: ["Section-by-section"] }
+      - { level: 1, must_contain: ["Acceptance threshold"] }
+    required_tables:
+      # "How to read this review" callout — single-cell framing note.
+      - name: how_to_read_callout
+        rows_min: 1
+        rows_max: 1
+        cols_min: 1
+        cols_max: 1
+        header_contains: ["HOW TO READ"]
+      # "Reviewed by" metadata block — 3x2 or similar.
+      - name: reviewed_by_meta
+        rows_min: 2
+        rows_max: 6
+        cols_min: 2
+        cols_max: 2
+        header_contains: ["Reviewed by"]
+      # At least one "Quoted from draft" callout (there are multiple
+      # in Zambia; we require >=1 and count via a separate matcher).
+      - name: quoted_from_draft_callout
+        rows_min: 1
+        rows_max: 1
+        cols_min: 1
+        cols_max: 1
+        header_contains: ["QUOTED FROM DRAFT"]
+        min_instances: 3
+      # Worked-examples callout.
+      - name: worked_examples_callout
+        rows_min: 1
+        rows_max: 1
+        cols_min: 1
+        cols_max: 1
+        header_contains: ["WORKED EXAMPLES"]
+
+  sample_final_report:
+    required_image_count: 3
+    required_headings:
+      - { level: 1, must_contain: ["Executive summary"] }
+      - { level: 1, must_contain: ["Headline"] }
+      - { level: 1, must_contain: ["Scope"] }
+      - { level: 2, must_contain: ["Methodology"] }
+      - { level: 1, must_contain: ["Field-level coverage"] }
+      - { level: 1, must_contain: ["Findings by lifecycle phase"] }
+      - { level: 1, must_contain: ["Where each field comes from"] }
+      - { level: 1, must_contain: ["Country-specific fields"] }
+      - { level: 1, must_contain: ["Why the gaps exist"] }
+      - { level: 1, must_contain: ["What can be published now"] }
+      - { level: 1, must_contain: ["What to do next"] }
+      - { level: 1, must_contain: ["Review trail"] }
+      - { level: 1, must_contain: ["Conclusion"] }
+    required_tables:
+      - name: how_to_use_callout
+        rows_min: 1
+        rows_max: 1
+        cols_min: 1
+        cols_max: 1
+        header_contains: ["HOW TO USE"]
+      - name: what_report_answers_callout
+        rows_min: 1
+        rows_max: 1
+        cols_min: 1
+        cols_max: 1
+        header_contains: ["WHAT THIS REPORT ANSWERS"]
+      - name: publisher_meta
+        rows_min: 3
+        rows_max: 8
+        cols_min: 2
+        cols_max: 2
+        header_contains: ["Publisher"]
+      - name: verdict_callout
+        rows_min: 1
+        rows_max: 1
+        cols_min: 1
+        cols_max: 1
+        header_contains: ["VERDICT"]
+      - name: headline_stats_row
+        rows_min: 1
+        rows_max: 1
+        cols_min: 3
+        cols_max: 5
+        header_contains: []       # layout is numeric cards, content varies
+      - name: systems_reviewed_table
+        rows_min: 3
+        rows_max: 10
+        cols_min: 4
+        cols_max: 6
+        header_contains: ["System", "Owner", "Access method"]
+      - name: sheet_coverage_table
+        rows_min: 4
+        rows_max: 10
+        cols_min: 3
+        cols_max: 5
+        header_contains: ["Sheet", "Fields mapped", "Coverage"]
+      - name: denominators_callout
+        rows_min: 1
+        rows_max: 1
+        cols_min: 1
+        cols_max: 1
+        header_contains: ["ON THE DENOMINATORS"]
+      - name: phase_coverage_table
+        rows_min: 5
+        rows_max: 10
+        cols_min: 3
+        cols_max: 5
+        header_contains: ["Phase", "Coverage"]
+      - name: field_mapping_table
+        rows_min: 5
+        rows_max: 40
+        cols_min: 3
+        cols_max: 5
+        header_contains: ["OC4IDS path", "Status"]
+      - name: country_specific_fields_table
+        rows_min: 2
+        rows_max: 20
+        cols_min: 2
+        cols_max: 5
+        header_contains: ["Recommended treatment"]
+      - name: root_cause_table
+        rows_min: 3
+        rows_max: 12
+        cols_min: 3
+        cols_max: 5
+        header_contains: ["Cause", "What fixes it"]
+      - name: decision_buckets_table
+        rows_min: 3
+        rows_max: 8
+        cols_min: 2
+        cols_max: 4
+        header_contains: ["Ready to publish"]
+      - name: review_trail_table
+        rows_min: 3
+        rows_max: 10
+        cols_min: 2
+        cols_max: 4
+        header_contains: ["Reviewer", "Role"]
+
+  # Reform companion is authored outside the build pipeline (see
+  # `read_only_outputs`), so it is not part of the structural schema.
+
